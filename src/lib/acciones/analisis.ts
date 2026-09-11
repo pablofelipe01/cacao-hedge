@@ -10,10 +10,15 @@ import { ErrorDatos } from "@/lib/data/errores";
 import { elegirProveedor, obtenerMercado, type OrigenCacao } from "@/lib/data/mercado";
 import type { FuentePrecio } from "@/types/database";
 import { analizarCobertura } from "@/lib/engine/index";
-import { SUPUESTOS_POR_DEFECTO, type Lote, type Supuestos } from "@/lib/engine/tipos";
+import {
+  SUPUESTOS_POR_DEFECTO,
+  type Lote,
+  type Supuestos,
+  type TipoOperacion,
+} from "@/lib/engine/tipos";
 import { diasHasta } from "@/lib/formato";
 
-import { erroresPorCampo, esquemaAnalisis } from "./esquemas";
+import { erroresPorCampo, esquemaAnalisis, interpretarNumero } from "./esquemas";
 import type { EstadoFormulario } from "./inventario";
 import type { Json } from "@/types/database";
 
@@ -88,35 +93,41 @@ export async function ejecutarAnalisis(
 
   const datos = validado.data;
 
-  // Cobertura larga: el motor no la implementa. Calcular igual daría la
-  // recomendación invertida —vender futuros a quien necesita comprarlos—
-  // y eso no es un análisis incompleto, es uno peligroso.
-  if (datos.situacion === "ya_vendi") {
-    return {
-      mensaje:
-        "Esta herramienta todavía no cubre el caso de una venta ya cerrada con el cacao por comprar. Ese caso exige COMPRAR futuros, y el motor solo calcula coberturas de venta: darle un resultado sería darle el consejo al revés.",
-    };
-  }
-
   const dias = diasHasta(datos.fechaEmbarque);
   if (dias <= 0) {
     return { errores: { fechaEmbarque: "La fecha de embarque debe ser futura." } };
   }
 
-  const precio = Number(String(datos.precioVentaUsdTm ?? "").replace(",", "."));
+  // El sentido de la cobertura sale de la situación declarada, no del
+  // tipo de contrato: quien ya vendió y debe comprar el físico necesita
+  // COMPRAR futuros, y confundirlo duplicaría su exposición.
+  const tipoOperacion: TipoOperacion =
+    datos.situacion === "ya_vendi" ? "venta_sin_comprar" : "inventario_sin_vender";
+
+  const precio = interpretarNumero(String(datos.precioVentaUsdTm ?? ""));
+  // Una venta cerrada siempre tiene precio; el esquema ya lo exigió.
+  const necesitaPrecio =
+    tipoOperacion === "venta_sin_comprar" || datos.tipoContrato === "precio_fijo_usd";
+
   const lote: Lote = {
     toneladas: datos.toneladas,
-    costoCopKg: datos.costoCopKg,
+    // El cacao del caso A todavía no se compró: no hay costo hundido.
+    costoCopKg: tipoOperacion === "venta_sin_comprar" ? 0 : datos.costoCopKg,
     diasAEmbarque: dias,
     diferencialUsdTm: datos.diferencialUsdTm,
+    tipoOperacion,
     tipoContrato: datos.tipoContrato,
-    precioVentaUsdTm:
-      datos.tipoContrato === "precio_fijo_usd" && Number.isFinite(precio) ? precio : null,
+    precioVentaUsdTm: necesitaPrecio && Number.isFinite(precio) ? precio : null,
   };
 
-  if (lote.tipoContrato === "precio_fijo_usd" && lote.precioVentaUsdTm == null) {
+  if (necesitaPrecio && lote.precioVentaUsdTm == null) {
     return {
-      errores: { precioVentaUsdTm: "Un contrato a precio fijo necesita el precio pactado." },
+      errores: {
+        precioVentaUsdTm:
+          tipoOperacion === "venta_sin_comprar"
+            ? "Indique a qué precio cerró la venta, en USD/TM."
+            : "Un contrato a precio fijo necesita el precio pactado.",
+      },
     };
   }
 
@@ -164,6 +175,7 @@ export async function ejecutarAnalisis(
       resultados: aJson({
         // `lote`, `mercado` y `supuestos` ya viven en sus propias columnas:
         // repetirlos aquí solo engordaría el jsonb.
+        operacion: resultado.operacion,
         aniosHorizonte: resultado.aniosHorizonte,
         precioEquilibrioUsdTm: resultado.precioEquilibrioUsdTm,
         dimensionamiento: resultado.dimensionamiento,

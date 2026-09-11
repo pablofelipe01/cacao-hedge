@@ -10,8 +10,11 @@ import { crearClienteServidor } from "@/lib/supabase/server";
 import { cop, fechaLegible, porcentaje, toneladas, usdTm } from "@/lib/formato";
 import type { EvaluacionEstrategia, Recomendacion } from "@/lib/engine/index";
 import type { DimensionamientoCobertura } from "@/lib/engine/contratos";
+import type { TipoOperacion } from "@/lib/engine/tipos";
 
 interface ResultadosGuardados {
+  /** Ausente en los análisis guardados antes del caso A: todos eran de inventario. */
+  operacion?: TipoOperacion;
   aniosHorizonte: number;
   precioEquilibrioUsdTm: number;
   dimensionamiento: DimensionamientoCobertura;
@@ -77,7 +80,17 @@ export default async function PaginaResultados({ params }: PageProps<"/analisis/
     evaluaciones[0];
   const sinCobertura = evaluaciones.find((e) => e.resumen.estrategia.tipo === "sin_cobertura");
 
-  const ingresoEsperado = entradas.toneladas * (mercado.futuroUsdTm + entradas.diferencialUsdTm);
+  // Con inventario el nominal es lo que espera cobrar; con una venta ya
+  // cerrada, lo que espera pagar para abastecerse. Mismo cálculo, lectura
+  // opuesta: etiquetarlo mal invierte el sentido de toda la pantalla.
+  const esInventario = (resultados.operacion ?? "inventario_sin_vender") === "inventario_sin_vender";
+  const nominalUsd = entradas.toneladas * (mercado.futuroUsdTm + entradas.diferencialUsdTm);
+
+  const { subcobertura, sobrecobertura } = resultados.dimensionamiento;
+  const alternativasDimensionamiento =
+    subcobertura.contratos === sobrecobertura.contratos
+      ? [subcobertura]
+      : [subcobertura, sobrecobertura];
 
   return (
     <div className="space-y-8">
@@ -89,7 +102,9 @@ export default async function PaginaResultados({ params }: PageProps<"/analisis/
           </Link>
         </div>
         <p className="text-sm text-texto-suave">
-          {toneladas(entradas.toneladas)} TM · embarque {fechaLegible(entradas.fechaEmbarque)} (
+          {toneladas(entradas.toneladas)} TM{" "}
+          {esInventario ? "en bodega" : "por comprar"} ·{" "}
+          {esInventario ? "embarque" : "entrega"} {fechaLegible(entradas.fechaEmbarque)} (
           {entradas.diasAEmbarque} días) · diferencial{" "}
           {entradas.diferencialUsdTm > 0 ? "+" : ""}
           {usdTm(entradas.diferencialUsdTm)} USD/TM
@@ -123,16 +138,20 @@ export default async function PaginaResultados({ params }: PageProps<"/analisis/
             detalle={`vol. anualizada ${porcentaje(mercado.volTrmAnualizada)}`}
           />
           <TarjetaMetrica
-            etiqueta="Exposición nominal"
-            valor={cop(ingresoEsperado * mercado.trm)}
+            etiqueta={esInventario ? "Exposición nominal" : "Costo esperado de la compra"}
+            valor={cop(nominalUsd * mercado.trm)}
             unidad="COP"
-            detalle={`${usdTm(ingresoEsperado)} USD al precio efectivo esperado`}
+            detalle={`${usdTm(nominalUsd)} USD ${esInventario ? "al precio efectivo esperado" : "a la bolsa de hoy más el diferencial"}`}
           />
           <TarjetaMetrica
-            etiqueta="Punto de equilibrio"
+            etiqueta={esInventario ? "Punto de equilibrio" : "Precio máximo de compra"}
             valor={usdTm(resultados.precioEquilibrioUsdTm)}
             unidad="USD/TM"
-            detalle={`costo del lote a la TRM vigente`}
+            detalle={
+              esInventario
+                ? "costo del lote a la TRM vigente"
+                : "por encima de aquí, la venta ya cerrada deja de dar margen"
+            }
           />
         </div>
       </section>
@@ -163,7 +182,7 @@ export default async function PaginaResultados({ params }: PageProps<"/analisis/
               detalle={`sin cobertura: ${cop(sinCobertura.monteCarlo.percentiles.p5)} COP`}
             />
             <TarjetaMetrica
-              etiqueta="VaR 95 % al embarque"
+              etiqueta={`VaR 95 % ${esInventario ? "al embarque" : "a la entrega"}`}
               valor={cop(recomendada.var.varCop)}
               unidad="COP"
               detalle={`sin cobertura: ${cop(sinCobertura.var.varCop)} COP`}
@@ -251,17 +270,18 @@ export default async function PaginaResultados({ params }: PageProps<"/analisis/
           contratos CC, y un contrato no se puede partir.
         </p>
         <div className="mt-3 grid gap-3 sm:grid-cols-2">
-          {[resultados.dimensionamiento.subcobertura, resultados.dimensionamiento.sobrecobertura].map(
-            (alternativa) => (
-              <div key={alternativa.tipo} className="rounded border border-borde p-3">
-                <p className="text-sm font-medium capitalize">{alternativa.tipo}</p>
-                <p className="tabular mt-0.5 text-sm">
-                  {alternativa.contratos} contratos · {toneladas(alternativa.toneladasCubiertas)} TM
-                </p>
-                <p className="mt-1 text-xs text-texto-suave">{alternativa.exposicionResidual}</p>
-              </div>
-            ),
-          )}
+          {/* Cuando las toneladas caen justo en un múltiplo de 10 no hay dos
+              alternativas: subcobertura y sobrecobertura son la misma, y
+              pintarla dos veces haría creer que hay una decisión que tomar. */}
+          {alternativasDimensionamiento.map((alternativa) => (
+            <div key={alternativa.contratos} className="rounded border border-borde p-3">
+              <p className="text-sm font-medium capitalize">{alternativa.tipo}</p>
+              <p className="tabular mt-0.5 text-sm">
+                {alternativa.contratos} contratos · {toneladas(alternativa.toneladasCubiertas)} TM
+              </p>
+              <p className="mt-1 text-xs text-texto-suave">{alternativa.exposicionResidual}</p>
+            </div>
+          ))}
         </div>
       </section>
 

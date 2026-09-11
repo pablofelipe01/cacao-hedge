@@ -180,17 +180,52 @@ describe("esquemaAnalisis · situación de cobertura", () => {
   };
 
   it("por defecto asume que hay cacao en bodega", () => {
-    // Es el único caso que el motor sabe calcular.
+    // Es el caso que trae el formulario abierto, y el que tenían todos
+    // los análisis guardados antes de que existiera el caso A.
     expect(esquemaAnalisis.safeParse(base).data?.situacion).toBe("tengo_cacao");
   });
 
   it("acepta las dos situaciones que existen en el negocio", () => {
     expect(esquemaAnalisis.safeParse({ ...base, situacion: "tengo_cacao" }).success).toBe(true);
-    expect(esquemaAnalisis.safeParse({ ...base, situacion: "ya_vendi" }).success).toBe(true);
+    expect(
+      esquemaAnalisis.safeParse({
+        ...base,
+        situacion: "ya_vendi",
+        precioVentaUsdTm: "6500",
+      }).success,
+    ).toBe(true);
   });
 
   it("rechaza una situación inventada", () => {
     expect(esquemaAnalisis.safeParse({ ...base, situacion: "otra_cosa" }).success).toBe(false);
+  });
+
+  it("exige el precio de la venta ya cerrada", () => {
+    // Sin él no hay ingreso contra el cual medir el costo de comprar el
+    // cacao: el análisis no tendría de dónde salir.
+    const sinPrecio = esquemaAnalisis.safeParse({ ...base, situacion: "ya_vendi" });
+    expect(sinPrecio.success).toBe(false);
+    expect(erroresPorCampo(sinPrecio.error!).precioVentaUsdTm).toMatch(/cerró la venta/);
+
+    const cero = esquemaAnalisis.safeParse({
+      ...base,
+      situacion: "ya_vendi",
+      precioVentaUsdTm: "0",
+    });
+    expect(cero.success).toBe(false);
+  });
+
+  it("no exige costo de adquisición cuando el cacao aún no se ha comprado", () => {
+    // El formulario del caso A no pinta ese campo: si el esquema lo
+    // exigiera, el usuario vería un error sobre una casilla invisible.
+    const sinCosto = { ...base, costoCopKg: undefined };
+    const resultado = esquemaAnalisis.safeParse({
+      ...sinCosto,
+      situacion: "ya_vendi",
+      precioVentaUsdTm: "6500",
+    });
+    expect(resultado.success).toBe(true);
+    expect(resultado.data?.costoCopKg).toBe(0);
   });
 });
 

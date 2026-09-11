@@ -11,10 +11,10 @@
  * reproducir bit a bit el mismo análisis meses después.
  */
 
-import { construirEstrategias, resumirEstrategia } from "./estrategias";
+import { construirEstrategias, operacionDe, resumirEstrategia } from "./estrategias";
 import { construirMatrizEscenarios } from "./escenarios";
 import { dimensionarCobertura, type DimensionamientoCobertura } from "./contratos";
-import { precioEquilibrioUsdTm } from "./fx";
+import { precioEquilibrioUsdTm, precioMaximoCompraUsdTm } from "./fx";
 import {
   analizarMargen,
   calcularExposicion,
@@ -29,7 +29,15 @@ import {
   type DistribucionMonteCarlo,
 } from "./montecarlo";
 import { diasAAnios } from "./volatilidad";
-import { SUPUESTOS_POR_DEFECTO, type Lote, type Mercado, type ResumenEstrategia, type Supuestos } from "./tipos";
+import {
+  SUPUESTOS_POR_DEFECTO,
+  type Lote,
+  type Mercado,
+  type ResumenEstrategia,
+  sentidoDe,
+  type Supuestos,
+  type TipoOperacion,
+} from "./tipos";
 
 export interface EvaluacionEstrategia {
   resumen: ResumenEstrategia;
@@ -54,9 +62,17 @@ export interface ResultadoAnalisis {
   lote: Lote;
   mercado: Mercado;
   supuestos: Supuestos;
+  /** Situación del negocio que se analizó. */
+  operacion: TipoOperacion;
   /** Horizonte hasta el embarque, en años. */
   aniosHorizonte: number;
-  /** Precio de venta que iguala el costo de adquisición, USD/TM. */
+  /**
+   * Precio límite en USD/TM más allá del cual el negocio deja de ganar.
+   *
+   * Con inventario es el precio mínimo de VENTA que cubre el costo ya
+   * pagado; con una venta cerrada, el precio máximo de COMPRA que cabe
+   * dentro del ingreso pactado. En los dos casos es la frontera.
+   */
   precioEquilibrioUsdTm: number;
   dimensionamiento: DimensionamientoCobertura;
   evaluaciones: EvaluacionEstrategia[];
@@ -73,10 +89,17 @@ export interface ResultadoAnalisis {
  */
 export function detectarAdvertencias(lote: Lote, mercado: Mercado): string[] {
   const advertencias: string[] = [];
+  const esInventario = operacionDe(lote) === "inventario_sin_vender";
 
-  if (lote.tipoContrato === "precio_fijo_usd") {
+  if (esInventario && lote.tipoContrato === "precio_fijo_usd") {
     advertencias.push(
       "El contrato ya tiene precio fijo en USD: el riesgo de precio del cacao está cerrado. Vender futuros sobre este lote no sería cobertura sino una posición especulativa. El riesgo que queda vivo es el cambiario.",
+    );
+  }
+
+  if (!esInventario) {
+    advertencias.push(
+      "La cobertura se cierra cuando compre el físico. Dejar los futuros abiertos después de abastecerse deja de ser cobertura y pasa a ser una posición especulativa.",
     );
   }
 
@@ -92,16 +115,25 @@ export function detectarAdvertencias(lote: Lote, mercado: Mercado): string[] {
     );
   }
 
-  const precioEquilibrio = precioEquilibrioUsdTm(lote.costoCopKg, mercado.trm);
-  const precioVenta =
-    lote.tipoContrato === "precio_fijo_usd" && lote.precioVentaUsdTm != null
-      ? lote.precioVentaUsdTm
-      : mercado.futuroUsdTm + lote.diferencialUsdTm;
+  if (esInventario) {
+    const precioEquilibrio = precioEquilibrioUsdTm(lote.costoCopKg, mercado.trm);
+    const precioVenta =
+      lote.tipoContrato === "precio_fijo_usd" && lote.precioVentaUsdTm != null
+        ? lote.precioVentaUsdTm
+        : mercado.futuroUsdTm + lote.diferencialUsdTm;
 
-  if (precioVenta <= precioEquilibrio) {
-    advertencias.push(
-      `El precio de venta estimado (${precioVenta.toFixed(0)} USD/TM) no cubre el costo de adquisición (${precioEquilibrio.toFixed(0)} USD/TM a la TRM vigente). Ninguna cobertura convierte en rentable un lote comprado por encima del mercado: solo fija la pérdida.`,
-    );
+    if (precioVenta <= precioEquilibrio) {
+      advertencias.push(
+        `El precio de venta estimado (${precioVenta.toFixed(0)} USD/TM) no cubre el costo de adquisición (${precioEquilibrio.toFixed(0)} USD/TM a la TRM vigente). Ninguna cobertura convierte en rentable un lote comprado por encima del mercado: solo fija la pérdida.`,
+      );
+    }
+  } else if (lote.precioVentaUsdTm != null) {
+    const maximo = precioMaximoCompraUsdTm(lote.precioVentaUsdTm, lote.diferencialUsdTm);
+    if (mercado.futuroUsdTm >= maximo) {
+      advertencias.push(
+        `El futuro ya está en ${mercado.futuroUsdTm.toFixed(0)} USD/TM y su margen se agota a partir de ${maximo.toFixed(0)}. La venta se cerró por debajo de lo que hoy cuesta abastecerla: cubrirse fija esa pérdida, no la evita.`,
+      );
+    }
   }
 
   if (Math.abs(lote.diferencialUsdTm) > 1500) {
@@ -205,9 +237,13 @@ export function analizarCobertura(
     lote,
     mercado,
     supuestos,
+    operacion: operacionDe(lote),
     aniosHorizonte: diasAAnios(lote.diasAEmbarque),
-    precioEquilibrioUsdTm: precioEquilibrioUsdTm(lote.costoCopKg, mercado.trm),
-    dimensionamiento: dimensionarCobertura(lote.toneladas, 1),
+    precioEquilibrioUsdTm:
+      operacionDe(lote) === "inventario_sin_vender"
+        ? precioEquilibrioUsdTm(lote.costoCopKg, mercado.trm)
+        : precioMaximoCompraUsdTm(lote.precioVentaUsdTm ?? 0, lote.diferencialUsdTm),
+    dimensionamiento: dimensionarCobertura(lote.toneladas, 1, sentidoDe(operacionDe(lote))),
     evaluaciones,
     recomendacion: recomendar(evaluaciones),
     advertencias: detectarAdvertencias(lote, mercado),

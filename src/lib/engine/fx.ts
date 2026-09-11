@@ -37,27 +37,63 @@ export function costoUsdTm(costoCopKg: number, trm: number): number {
 }
 
 /**
- * Precio al que se vende realmente el físico, USD/TM.
+ * Precio efectivo del físico en un escenario, USD/TM.
  *
- * Con contrato a precio fijo el precio está cerrado y no depende del
- * futuro: en ese caso el riesgo que queda es únicamente cambiario. En
- * los demás casos el precio es futuro ± diferencial, y por eso la
- * cobertura con futuros nunca elimina el riesgo de base.
+ * Con inventario sin vender es el precio al que VENDE; con una venta ya
+ * cerrada es el precio al que COMPRA al productor. En ambos casos es
+ * futuro ± diferencial, y por eso la cobertura con futuros nunca elimina
+ * el riesgo de base.
+ *
+ * La excepción es el inventario ya vendido a precio fijo en USD: ahí el
+ * precio está cerrado y no depende del futuro, así que lo único vivo es
+ * el riesgo cambiario.
  */
 export function precioFisicoUsdTm(
-  lote: Pick<Lote, "tipoContrato" | "precioVentaUsdTm">,
+  lote: Pick<Lote, "tipoContrato" | "precioVentaUsdTm" | "tipoOperacion">,
   futuroUsdTm: number,
   diferencialUsdTm: number,
 ): number {
-  if (lote.tipoContrato === "precio_fijo_usd") {
+  const esInventario = (lote.tipoOperacion ?? "inventario_sin_vender") === "inventario_sin_vender";
+
+  if (esInventario && lote.tipoContrato === "precio_fijo_usd") {
     if (lote.precioVentaUsdTm == null) {
-      throw new Error(
-        "Un contrato a precio fijo requiere precioVentaUsdTm.",
-      );
+      throw new Error("Un contrato a precio fijo requiere precioVentaUsdTm.");
     }
     return lote.precioVentaUsdTm;
   }
+
   return futuroUsdTm + diferencialUsdTm;
+}
+
+/**
+ * Precio de venta ya pactado en una operación de venta sin comprar.
+ *
+ * Es el dato que da sentido a la operación: sin él no hay ingreso cerrado
+ * que proteger y el caso no se sostiene.
+ */
+export function precioVentaPactadoUsdTm(
+  lote: Pick<Lote, "precioVentaUsdTm">,
+): number {
+  if (lote.precioVentaUsdTm == null || lote.precioVentaUsdTm <= 0) {
+    throw new Error(
+      "Una venta ya cerrada requiere el precio pactado en USD/TM: es el ingreso que la cobertura protege.",
+    );
+  }
+  return lote.precioVentaUsdTm;
+}
+
+/**
+ * Punto de equilibrio de una venta ya cerrada: el precio máximo que puede
+ * pagar por el físico sin perder plata, USD/TM.
+ *
+ * Es el espejo del punto de equilibrio del inventario. Allí el precio de
+ * venta no puede bajar de cierto nivel; aquí el de compra no puede subir.
+ */
+export function precioMaximoCompraUsdTm(
+  precioVentaUsdTm: number,
+  diferencialUsdTm: number,
+): number {
+  return precioVentaUsdTm - diferencialUsdTm;
 }
 
 /**

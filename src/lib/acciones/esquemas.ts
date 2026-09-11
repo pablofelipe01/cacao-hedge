@@ -70,16 +70,17 @@ export const tipoContratoEsquema = z.enum([
 ]);
 
 /**
- * Los dos casos de cobertura, y solo uno está implementado.
+ * Los dos casos de cobertura.
  *
- * - `tengo_cacao`: hay inventario físico sin vender. El riesgo es que el
- *   precio BAJE y la cobertura es VENDER futuros. Es lo que calcula el
- *   motor.
- * - `ya_vendi`: hay una venta cerrada y falta comprar el físico. El
- *   riesgo es que el precio SUBA y la cobertura es COMPRAR futuros. El
- *   motor no lo soporta, y dejarlo pasar daría la recomendación
- *   exactamente invertida: vender futuros a quien necesita comprarlos
- *   duplicaría su exposición en vez de cubrirla.
+ * - `tengo_cacao` (caso B): hay inventario físico sin vender. El riesgo
+ *   es que el precio BAJE y la cobertura es VENDER futuros.
+ * - `ya_vendi` (caso A): hay una venta cerrada y falta comprar el
+ *   físico. El riesgo es que el precio SUBA y la cobertura es COMPRAR
+ *   futuros.
+ *
+ * El sentido de la cobertura sale de aquí y de ningún otro lado: si este
+ * campo llega mal, el motor recomendará vender futuros a quien necesita
+ * comprarlos y duplicará su exposición en vez de cubrirla.
  */
 export const situacionEsquema = z.enum(["tengo_cacao", "ya_vendi"]);
 
@@ -128,18 +129,47 @@ export type DatosLote = z.infer<typeof esquemaLote>;
  * `ratioCobertura` vacío significa "recomiéndame": el motor compara todas
  * las estrategias y elige por el percentil 5.
  */
-export const esquemaAnalisis = z.object({
-  situacion: situacionEsquema.default("tengo_cacao"),
-  inventarioId: z.uuid().optional().or(z.literal("")),
-  toneladas: numeroPositivo("Las toneladas"),
-  costoCopKg: numeroNoNegativo("El costo por kilo"),
-  fechaEmbarque: fechaIso,
-  diferencialUsdTm: numeroCualquiera("El diferencial"),
-  tipoContrato: tipoContratoEsquema,
-  precioVentaUsdTm: z.string().trim().optional(),
-  /** "simbolo|fuente" de la serie de cacao. Vacío = fuente en vivo. */
-  origenCacao: z.string().trim().optional(),
-});
+export const esquemaAnalisis = z
+  .object({
+    situacion: situacionEsquema.default("tengo_cacao"),
+    inventarioId: z.uuid().optional().or(z.literal("")),
+    toneladas: numeroPositivo("Las toneladas"),
+    // En el caso A el cacao todavía no se ha comprado: no hay costo
+    // hundido que declarar, y el formulario no pinta el campo.
+    costoCopKg: z
+      .string()
+      .trim()
+      .default("0")
+      .transform(interpretarNumero)
+      .pipe(z.number({ error: "El costo por kilo debe ser un número." }).min(0, "El costo por kilo no puede ser negativo.")),
+    fechaEmbarque: fechaIso,
+    diferencialUsdTm: numeroCualquiera("El diferencial"),
+    tipoContrato: tipoContratoEsquema,
+    precioVentaUsdTm: z.string().trim().optional(),
+    /** "simbolo|fuente" de la serie de cacao. Vacío = fuente en vivo. */
+    origenCacao: z.string().trim().optional(),
+  })
+  .superRefine((datos, ctx) => {
+    // El precio pactado es obligatorio en dos situaciones distintas: un
+    // contrato a precio fijo (caso B) y una venta ya cerrada (caso A).
+    // En el caso A además es el número que sostiene todo el análisis: sin
+    // él no hay ingreso contra el cual medir el costo de abastecerse.
+    const exigePrecio =
+      datos.situacion === "ya_vendi" || datos.tipoContrato === "precio_fijo_usd";
+    if (!exigePrecio) return;
+
+    const precio = interpretarNumero(String(datos.precioVentaUsdTm ?? ""));
+    if (Number.isFinite(precio) && precio > 0) return;
+
+    ctx.addIssue({
+      code: "custom",
+      path: ["precioVentaUsdTm"],
+      message:
+        datos.situacion === "ya_vendi"
+          ? "Indique a qué precio cerró la venta, en USD/TM."
+          : "Un contrato a precio fijo necesita el precio pactado en USD/TM.",
+    });
+  });
 
 export type DatosAnalisis = z.infer<typeof esquemaAnalisis>;
 

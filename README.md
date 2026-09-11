@@ -140,30 +140,39 @@ para complementarlo, no para repetirlo.
 
 ---
 
-## Alcance: qué cobertura calcula y cuál no
+## Los dos casos de cobertura
 
-Hay dos situaciones distintas en el negocio, con riesgos opuestos:
+Hay dos situaciones distintas en el negocio, con riesgos opuestos, y la
+aplicación calcula las dos:
 
-| Situación | El riesgo es que el precio… | La cobertura es… | ¿La calcula? |
+| Situación | El riesgo es que el precio… | La cobertura es… | Opciones que protegen |
 |---|---|---|---|
-| Tengo el cacao y no lo he vendido | **baje** | **vender** futuros | ✅ sí |
-| Ya vendí y me falta comprar el cacao | **suba** | **comprar** futuros | ❌ no |
+| **Caso B** · Tengo el cacao y no lo he vendido | **baje** | **vender** futuros (corta) | *put* protector, collar |
+| **Caso A** · Ya vendí y me falta comprar el cacao | **suba** | **comprar** futuros (larga) | *call* protector, collar inverso |
 
-El motor implementa una sola fórmula de futuros, `(F₀ − F₁) × toneladas`, que es
-una posición corta. **No existe la cobertura larga.**
+No son un parámetro el uno del otro: el resultado de futuros cambia de signo
+(`(F₀ − F₁)` frente a `(F₁ − F₀)`), la protección se compra con *calls* en vez de
+*puts*, el escenario malo de la matriz pasa a ser la subida y las llamadas de
+margen se disparan cuando el precio **cae**, no cuando sube.
 
-Por eso el formulario pregunta la situación antes que nada y bloquea el segundo
-caso, tanto en la interfaz como en la acción de servidor. Calcular igual no daría
-un resultado incompleto: daría el consejo **invertido**. Recomendarle vender
-futuros a quien necesita comprarlos duplicaría su exposición en lugar de
-cubrirla, y el informe lo presentaría con la misma seguridad que un resultado
+Lo que sostiene la distinción es una sola identidad contable, en
+`evaluarEnEscenario`:
+
+```
+margen = ingreso físico − costo físico + resultado de cobertura − comisiones
+```
+
+Con inventario el ingreso flota y el costo ya está hundido en pesos; con una
+venta cerrada el ingreso está fijo y lo que flota es el costo de abastecerse. Las
+dos ramas se evalúan con el mismo código —la matriz de escenarios y el Monte
+Carlo llaman a esa función, no a una copia— precisamente para que no puedan
+divergir.
+
+El formulario pregunta la situación antes que nada porque de ella sale el sentido
+de la cobertura: si ese dato llega mal, la recomendación sale **invertida**
+—vender futuros a quien necesita comprarlos duplicaría su exposición en lugar de
+cubrirla— y el informe la presentaría con la misma seguridad que un resultado
 correcto.
-
-Añadir el caso largo exige invertir el signo del resultado de futuros, rehacer
-los payoff de opciones (protección con *call*, no con *put*), reinterpretar la
-matriz de escenarios —el escenario malo pasa a ser la subida— y cambiar el
-sentido de las llamadas de margen. No es un parámetro: es una segunda familia de
-estrategias.
 
 ---
 

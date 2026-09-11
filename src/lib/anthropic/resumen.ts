@@ -13,7 +13,9 @@
 
 import { CC_TONELADAS_POR_CONTRATO } from "@/lib/engine/constantes";
 import type { EvaluacionEstrategia, Recomendacion } from "@/lib/engine/index";
-import type { Lote, Mercado, Supuestos } from "@/lib/engine/tipos";
+import { operacionDe } from "@/lib/engine/estrategias";
+import { precioVentaPactadoUsdTm } from "@/lib/engine/fx";
+import type { Lote, Mercado, Supuestos, TipoOperacion } from "@/lib/engine/tipos";
 
 export interface EstrategiaResumida {
   id: string;
@@ -32,10 +34,25 @@ export interface EstrategiaResumida {
 }
 
 export interface ResumenCuantitativo {
+  /**
+   * Qué negocio se está analizando. Es el campo que decide la narrativa
+   * entera: con inventario la cobertura se vende y el riesgo es la caída
+   * del precio; con una venta cerrada la cobertura se compra y el riesgo
+   * es la subida.
+   */
+  operacion: {
+    tipo: TipoOperacion;
+    descripcion: string;
+    sentidoCobertura: string;
+    riesgoQueCubre: string;
+  };
   lote: {
     toneladas: number;
-    costoCopKg: number;
-    costoTotalCop: number;
+    /** Solo con inventario: lo que ya se pagó por el cacao en bodega. */
+    costoCopKg?: number;
+    costoTotalCop?: number;
+    /** Solo con venta cerrada: el precio al que se pactó la entrega. */
+    precioVentaPactadoUsdTm?: number;
     diasAEmbarque: number;
     fechaEmbarque: string;
     diferencialUsdTm: number;
@@ -51,8 +68,13 @@ export interface ResumenCuantitativo {
     simbolo: string;
     barrasHistoricas: number;
   };
-  precioVentaEsperadoUsdTm: number;
+  /** Con inventario, el precio de venta esperado; con venta cerrada, el costo esperado de abastecerse. */
+  precioFisicoEsperadoUsdTm: number;
+  /** Etiqueta legible de la cifra anterior, para que el informe no la confunda. */
+  precioFisicoEsperadoConcepto: string;
+  /** El límite: precio mínimo de venta con inventario, precio máximo de compra con venta cerrada. */
   puntoEquilibrioUsdTm: number;
+  puntoEquilibrioConcepto: string;
   exposicionNominalUsd: number;
   exposicionNominalCop: number;
   dimensionamiento: {
@@ -113,18 +135,41 @@ export interface EntradaResumen {
 export function construirResumen(entrada: EntradaResumen): ResumenCuantitativo {
   const { lote, mercado, supuestos, evaluaciones, recomendacion } = entrada;
 
-  const precioVenta =
-    lote.tipoContrato === "precio_fijo_usd" && lote.precioVentaUsdTm != null
-      ? lote.precioVentaUsdTm
-      : mercado.futuroUsdTm + lote.diferencialUsdTm;
+  const operacion = operacionDe(lote);
+  const esInventario = operacion === "inventario_sin_vender";
 
-  const exposicionUsd = lote.toneladas * precioVenta;
+  // Con inventario el precio que flota es el de venta; con una venta ya
+  // cerrada lo que flota es lo que costará comprar el físico. Son cifras
+  // distintas y el informe no puede intercambiarlas.
+  const precioFisico = esInventario
+    ? lote.tipoContrato === "precio_fijo_usd" && lote.precioVentaUsdTm != null
+      ? lote.precioVentaUsdTm
+      : mercado.futuroUsdTm + lote.diferencialUsdTm
+    : mercado.futuroUsdTm + lote.diferencialUsdTm;
+
+  const exposicionUsd = lote.toneladas * precioFisico;
 
   return {
+    operacion: {
+      tipo: operacion,
+      descripcion: esInventario
+        ? "Tiene cacao en bodega sin vender."
+        : "Ya cerró la venta a un precio en firme y todavía debe comprar el cacao para entregarlo.",
+      sentidoCobertura: esInventario
+        ? "cobertura corta: se VENDEN futuros"
+        : "cobertura larga: se COMPRAN futuros",
+      riesgoQueCubre: esInventario
+        ? "que el precio del cacao BAJE antes de vender"
+        : "que el precio del cacao SUBA antes de comprar",
+    },
     lote: {
       toneladas: r(lote.toneladas, 3),
-      costoCopKg: r(lote.costoCopKg),
-      costoTotalCop: r(lote.toneladas * lote.costoCopKg * 1000, 0),
+      ...(esInventario
+        ? {
+            costoCopKg: r(lote.costoCopKg),
+            costoTotalCop: r(lote.toneladas * lote.costoCopKg * 1000, 0),
+          }
+        : { precioVentaPactadoUsdTm: r(precioVentaPactadoUsdTm(lote)) }),
       diasAEmbarque: lote.diasAEmbarque,
       fechaEmbarque: entrada.fechaEmbarque,
       diferencialUsdTm: r(lote.diferencialUsdTm),
@@ -140,8 +185,14 @@ export function construirResumen(entrada: EntradaResumen): ResumenCuantitativo {
       simbolo: entrada.procedencia.simbolo,
       barrasHistoricas: entrada.procedencia.barras,
     },
-    precioVentaEsperadoUsdTm: r(precioVenta),
+    precioFisicoEsperadoUsdTm: r(precioFisico),
+    precioFisicoEsperadoConcepto: esInventario
+      ? "precio de venta esperado del cacao"
+      : "costo esperado de comprar el cacao (bolsa más diferencial que se le paga al productor)",
     puntoEquilibrioUsdTm: r(entrada.precioEquilibrioUsdTm),
+    puntoEquilibrioConcepto: esInventario
+      ? "precio mínimo de venta que cubre el costo ya pagado por el cacao"
+      : "precio máximo de compra que cabe dentro del ingreso ya pactado",
     exposicionNominalUsd: r(exposicionUsd, 0),
     exposicionNominalCop: r(exposicionUsd * mercado.trm, 0),
     dimensionamiento: {

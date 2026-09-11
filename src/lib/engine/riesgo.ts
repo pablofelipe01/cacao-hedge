@@ -28,10 +28,11 @@ export interface Exposicion {
 /**
  * Delta de la cobertura expresado en toneladas.
  *
- * Negativo porque una cobertura corta compensa la posición larga del
- * físico. Sirve para saber cuánta exposición al precio queda realmente
- * viva: un put muy fuera del dinero cubre mucho menos de lo que sugiere
- * su nominal.
+ * Positivo si la posición gana cuando el precio sube. Una cobertura corta
+ * da delta negativo y compensa el inventario; una larga da delta positivo
+ * y compensa la compra pendiente. Sirve para saber cuánta exposición al
+ * precio queda viva: un put muy fuera del dinero cubre mucho menos de lo
+ * que sugiere su nominal.
  */
 export function deltaCoberturaTm(
   estrategia: Estrategia,
@@ -46,18 +47,19 @@ export function deltaCoberturaTm(
     volatilidad: mercado.volAnualizada,
     tasa: supuestos.tasaLibreRiesgo,
   };
+  const signo = estrategia.sentido === "corta" ? -1 : 1;
 
   switch (estrategia.tipo) {
     case "sin_cobertura":
       return 0;
 
     case "futuros":
-      return -estrategia.toneladasCubiertas;
+      return signo * estrategia.toneladasCubiertas;
 
     // Solo una fracción del tramo está fijada: el resto sigue flotando.
     case "escalonada": {
       const peso = (estrategia.tramos! - 1) / (2 * estrategia.tramos!);
-      return -estrategia.toneladasCubiertas * (1 - peso);
+      return signo * estrategia.toneladasCubiertas * (1 - peso);
     }
 
     case "put_protector": {
@@ -65,10 +67,21 @@ export function deltaCoberturaTm(
       return delta * estrategia.toneladasCubiertas;
     }
 
+    case "call_protector": {
+      const { delta } = valorarOpcion("call", { ...base, strike: estrategia.strikeCall! });
+      return delta * estrategia.toneladasCubiertas;
+    }
+
     case "collar": {
       const deltaPut = valorarOpcion("put", { ...base, strike: estrategia.strikePut! }).delta;
       const deltaCall = valorarOpcion("call", { ...base, strike: estrategia.strikeCall! }).delta;
       return (deltaPut - deltaCall) * estrategia.toneladasCubiertas;
+    }
+
+    case "collar_inverso": {
+      const deltaCall = valorarOpcion("call", { ...base, strike: estrategia.strikeCall! }).delta;
+      const deltaPut = valorarOpcion("put", { ...base, strike: estrategia.strikePut! }).delta;
+      return (deltaCall - deltaPut) * estrategia.toneladasCubiertas;
     }
   }
 }
@@ -82,15 +95,30 @@ export function calcularExposicion(
 ): Exposicion {
   const nominalUsd = lote.toneladas * mercado.futuroUsdTm;
   const delta = deltaCoberturaTm(estrategia, mercado, supuestos, lote.diasAEmbarque);
+  const esInventario =
+    (lote.tipoOperacion ?? "inventario_sin_vender") === "inventario_sin_vender";
 
-  // Con contrato a precio fijo en USD el precio ya está cerrado: no hay
-  // exposición al futuro, solo cambiaria.
-  const toneladasExpuestas =
-    lote.tipoContrato === "precio_fijo_usd" ? delta : lote.toneladas + delta;
+  /*
+   * Posición física en toneladas equivalentes.
+   *
+   * Con inventario es larga: gana si el precio sube. Con una venta ya
+   * cerrada es corta: debe entregar cacao que todavía no compró, así que
+   * pierde si el precio sube. Un inventario ya vendido a precio fijo no
+   * tiene exposición al futuro, solo cambiaria.
+   */
+  const fisicoTm = !esInventario
+    ? -lote.toneladas
+    : lote.tipoContrato === "precio_fijo_usd"
+      ? 0
+      : lote.toneladas;
 
+  const toneladasExpuestas = fisicoTm + delta;
+
+  // Todo el flujo es en dólares, así que la exposición cambiaria es el
+  // valor completo de la operación, se cubra o no el precio.
   const precioVenta =
-    lote.tipoContrato === "precio_fijo_usd"
-      ? (lote.precioVentaUsdTm ?? mercado.futuroUsdTm)
+    lote.precioVentaUsdTm != null && (!esInventario || lote.tipoContrato === "precio_fijo_usd")
+      ? lote.precioVentaUsdTm
       : mercado.futuroUsdTm + lote.diferencialUsdTm;
 
   return {
@@ -209,15 +237,16 @@ export interface LlamadaMargen {
 }
 
 /**
- * Estima las llamadas de margen de una posición corta en futuros.
+ * Estima las llamadas de margen de una posición en futuros.
  *
- * Estar corto significa perder cuando el precio sube. Esa pérdida no es
- * económica —el físico en bodega sube al mismo tiempo— pero sí es un
- * desembolso de caja inmediato contra la cámara de compensación. Es el
- * riesgo de liquidez que hunde coberturas por lo demás correctas.
+ * Una posición corta pierde cuando el precio sube; una larga, cuando
+ * baja. Esa pérdida no es económica —el físico se mueve a la vez en
+ * sentido contrario— pero sí es un desembolso de caja inmediato contra la
+ * cámara de compensación. Es el riesgo de liquidez que hunde coberturas
+ * por lo demás correctas.
  *
- * Solo aplica a estrategias con futuros vendidos: quien compra opciones
- * paga la prima por anticipado y nunca recibe una llamada de margen.
+ * Solo aplica a estrategias con futuros: quien compra opciones paga la
+ * prima por anticipado y nunca recibe una llamada de margen.
  */
 export function analizarMargen(
   estrategia: Estrategia,
@@ -236,9 +265,13 @@ export function analizarMargen(
   const colchonPorContratoUsd =
     supuestos.margenInicialUsd - supuestos.margenMantenimientoUsd;
 
-  // Cada USD/TM de subida cuesta 10 USD por contrato.
+  // Cada USD/TM de movimiento en contra cuesta 10 USD por contrato. La
+  // dirección adversa depende del sentido: hacia arriba si está corto,
+  // hacia abajo si está largo.
+  const haciaArriba = estrategia.sentido === "corta";
   const movimientoDisparadorUsdTm = colchonPorContratoUsd / CC_TONELADAS_POR_CONTRATO;
-  const precioDisparadorUsdTm = mercado.futuroUsdTm + movimientoDisparadorUsdTm;
+  const precioDisparadorUsdTm =
+    mercado.futuroUsdTm + (haciaArriba ? 1 : -1) * movimientoDisparadorUsdTm;
 
   const porEscenario: LlamadaMargen[] = [];
   const vistos = new Set<number>();
@@ -248,12 +281,10 @@ export function analizarMargen(
     if (vistos.has(escenario.futuroUsdTm)) continue;
     vistos.add(escenario.futuroUsdTm);
 
-    const perdidaUsd = Math.max(
-      (escenario.futuroUsdTm - mercado.futuroUsdTm) *
-        CC_TONELADAS_POR_CONTRATO *
-        contratos,
-      0,
-    );
+    const movimiento = haciaArriba
+      ? escenario.futuroUsdTm - mercado.futuroUsdTm
+      : mercado.futuroUsdTm - escenario.futuroUsdTm;
+    const perdidaUsd = Math.max(movimiento * CC_TONELADAS_POR_CONTRATO * contratos, 0);
     const hayLlamada = perdidaUsd > colchonPorContratoUsd * contratos;
     const montoUsd = hayLlamada ? perdidaUsd : 0;
 

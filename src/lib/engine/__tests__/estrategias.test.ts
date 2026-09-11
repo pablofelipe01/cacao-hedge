@@ -45,6 +45,7 @@ function escenario(futuro: number, trm = 3100, base = 250): Escenario {
 const FUTUROS_100: Estrategia = {
   id: "futuros_100",
   tipo: "futuros",
+  sentido: "corta",
   nombre: "Venta de futuros 100 %",
   descripcion: "",
   ratioCobertura: 1,

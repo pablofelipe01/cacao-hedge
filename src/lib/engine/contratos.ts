@@ -9,6 +9,7 @@
  */
 
 import { CC_TONELADAS_POR_CONTRATO } from "./constantes";
+import type { SentidoCobertura } from "./tipos";
 
 /** Toneladas con dos decimales y coma decimal, como se escribe en Colombia. */
 function tm(valor: number): string {
@@ -19,7 +20,7 @@ function tm(valor: number): string {
 }
 
 export interface AlternativaCobertura {
-  /** Contratos CC a vender. */
+  /** Contratos CC a vender (cobertura corta) o a comprar (larga). */
   contratos: number;
   /** Toneladas efectivamente cubiertas (contratos × 10). */
   toneladasCubiertas: number;
@@ -50,6 +51,7 @@ export interface DimensionamientoCobertura {
 function construirAlternativa(
   contratos: number,
   toneladasObjetivo: number,
+  sentido: SentidoCobertura,
 ): AlternativaCobertura {
   const toneladasCubiertas = contratos * CC_TONELADAS_POR_CONTRATO;
   const toneladasResiduales = toneladasObjetivo - toneladasCubiertas;
@@ -61,11 +63,17 @@ function construirAlternativa(
         ? "sobrecobertura"
         : "exacta";
 
+  // El descalce duele en direcciones opuestas según el sentido: quien
+  // cubre inventario teme la baja y quien cubre una compra pendiente teme
+  // la subida. Decirlo al revés es peor que no decirlo.
+  const corta = sentido === "corta";
   const exposicionResidual =
     tipo === "subcobertura"
-      ? `${tm(toneladasResiduales)} TM quedan expuestas a la baja del precio.`
+      ? `${tm(toneladasResiduales)} TM quedan expuestas a la ${corta ? "baja" : "subida"} del precio.`
       : tipo === "sobrecobertura"
-        ? `${tm(Math.abs(toneladasResiduales))} TM vendidas sin físico detrás: posición neta corta, expuesta a la subida del precio.`
+        ? corta
+          ? `${tm(Math.abs(toneladasResiduales))} TM vendidas sin físico detrás: posición neta corta, expuesta a la subida del precio.`
+          : `${tm(Math.abs(toneladasResiduales))} TM compradas sin venta detrás: posición neta larga, expuesta a la baja del precio.`
         : "Sin exposición residual: la cobertura calza exactamente con el objetivo.";
 
   return {
@@ -82,12 +90,16 @@ function construirAlternativa(
  * Calcula las dos alternativas de dimensionamiento para un inventario y
  * un ratio de cobertura objetivo.
  *
- * @param toneladas    Inventario físico, TM.
+ * @param toneladas    Toneladas a cubrir: el inventario físico en una
+ *                     cobertura corta, lo que falta por comprar en una larga.
  * @param ratioObjetivo Fracción a cubrir (0 a 1). 1 = cobertura total.
+ * @param sentido      Solo cambia cómo se describe el residual; el
+ *                     redondeo es idéntico en ambos sentidos.
  */
 export function dimensionarCobertura(
   toneladas: number,
   ratioObjetivo = 1,
+  sentido: SentidoCobertura = "corta",
 ): DimensionamientoCobertura {
   if (toneladas <= 0) {
     throw new Error("Las toneladas deben ser mayores que cero.");
@@ -99,11 +111,12 @@ export function dimensionarCobertura(
   const toneladasObjetivo = toneladas * ratioObjetivo;
   const contratosExactos = toneladasObjetivo / CC_TONELADAS_POR_CONTRATO;
 
-  const sub = construirAlternativa(Math.floor(contratosExactos), toneladasObjetivo);
-  const sobre = construirAlternativa(Math.ceil(contratosExactos), toneladasObjetivo);
+  const sub = construirAlternativa(Math.floor(contratosExactos), toneladasObjetivo, sentido);
+  const sobre = construirAlternativa(Math.ceil(contratosExactos), toneladasObjetivo, sentido);
 
   // Con residuales empatados en magnitud se prefiere la subcobertura:
-  // dejar físico sin cubrir es menos grave que vender lo que no se tiene.
+  // quedarse corto de cobertura es menos grave que abrir una posición
+  // especulativa sobre toneladas que no existen.
   const recomendada =
     Math.abs(sub.toneladasResiduales) <= Math.abs(sobre.toneladasResiduales)
       ? sub

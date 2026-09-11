@@ -23,8 +23,7 @@
  */
 
 import { crearPrng, media, parNormalEstandar, percentil } from "./numerico";
-import { costoAdquisicionCop, precioFisicoUsdTm } from "./fx";
-import { comisionesUsd, resultadoCoberturaUsd } from "./estrategias";
+import { evaluarEnEscenario } from "./estrategias";
 import { diasAAnios } from "./volatilidad";
 import type { Escenario, Estrategia, Lote, Mercado, Supuestos } from "./tipos";
 
@@ -107,9 +106,12 @@ export function construirHistograma(
 /**
  * Simula la distribución de la utilidad en COP de una estrategia.
  *
- * Reutiliza `resultadoCoberturaUsd` para valorar la cobertura en cada
- * trayectoria, de modo que el Monte Carlo y la matriz determinística no
- * puedan divergir: comparten exactamente el mismo cálculo de payoff.
+ * Cada trayectoria se valora con `evaluarEnEscenario`, la misma función
+ * que alimenta la matriz determinística. No es una preferencia de estilo:
+ * cuando este módulo duplicaba esa cuenta, añadir el caso de cobertura
+ * larga actualizó la matriz y dejó atrás el Monte Carlo, que siguió
+ * aplicando en silencio las fórmulas del caso contrario. Compartir la
+ * función hace imposible esa divergencia.
  */
 export function simularMonteCarlo(
   estrategia: Estrategia,
@@ -139,36 +141,21 @@ export function simularMonteCarlo(
   const complemento = Math.sqrt(1 - rho ** 2);
 
   const prng = crearPrng(semilla);
-  const costoLoteCop = costoAdquisicionCop(lote.toneladas, lote.costoCopKg);
-  const comisiones = comisionesUsd(estrategia, supuestos);
-  const primasCop = estrategia.costoInicialUsd * mercado.trm;
-
   const utilidades = new Array<number>(trayectorias);
 
   /** Evalúa una trayectoria a partir de sus tres choques normales. */
   const evaluar = (z1: number, z2: number, z3: number): number => {
     const zTrm = rho * z1 + complemento * z2;
 
-    const futuroFinal = mercado.futuroUsdTm * Math.exp(derivaPrecio + sigmaPrecio * z1);
-    const trmFinal = mercado.trm * Math.exp(derivaTrm + sigmaTrm * zTrm);
-    const baseFinal = lote.diferencialUsdTm + desviacionBaseUsdTm * z3;
-
     const escenario: Escenario = {
-      futuroUsdTm: futuroFinal,
-      trm: trmFinal,
-      diferencialUsdTm: baseFinal,
+      futuroUsdTm: mercado.futuroUsdTm * Math.exp(derivaPrecio + sigmaPrecio * z1),
+      trm: mercado.trm * Math.exp(derivaTrm + sigmaTrm * zTrm),
+      diferencialUsdTm: lote.diferencialUsdTm + desviacionBaseUsdTm * z3,
       etiqueta: "mc",
       ejes: { precio: 0, trm: 0, base: 0 },
     };
 
-    const precioFisico = precioFisicoUsdTm(lote, futuroFinal, baseFinal);
-    const ingresoFisicoUsd = lote.toneladas * precioFisico;
-    const coberturaUsd = resultadoCoberturaUsd(estrategia, mercado.futuroUsdTm, escenario);
-
-    const ingresoNetoCop =
-      (ingresoFisicoUsd + coberturaUsd - comisiones) * trmFinal - primasCop;
-
-    return ingresoNetoCop - costoLoteCop;
+    return evaluarEnEscenario(estrategia, lote, mercado, escenario, supuestos).utilidadCop;
   };
 
   for (let i = 0; i < trayectorias; i += 2) {

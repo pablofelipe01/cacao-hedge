@@ -45,6 +45,66 @@ const NOMBRE_FUENTE: Record<string, string> = {
   manual: "carga manual",
 };
 
+type Situacion = "tengo_cacao" | "ya_vendi";
+
+/**
+ * Las etiquetas cambian con la situación, no solo por cortesía.
+ *
+ * Las mismas casillas significan cosas opuestas en cada caso: el
+ * diferencial es lo que le PAGAN sobre la bolsa cuando vende su
+ * inventario, y lo que él PAGA al productor cuando debe abastecerse. Un
+ * signo mal entendido aquí mueve el análisis entero.
+ */
+const TEXTOS: Record<Situacion, {
+  pasoCantidad: string;
+  toneladas: string;
+  ayudaToneladas: string;
+  placeholderToneladas: string;
+  pasoOperacion: string;
+  fecha: string;
+  ayudaFecha: string;
+  diferencial: string;
+  ayudaDiferencial: string;
+  precio: string;
+  ayudaPrecio: string;
+}> = {
+  tengo_cacao: {
+    pasoCantidad: "2 · ¿Cuánto cacao?",
+    toneladas: "Toneladas métricas",
+    ayudaToneladas: "Lo que tiene en bodega y quiere proteger.",
+    placeholderToneladas: "15,275",
+    pasoOperacion: "3 · Su operación",
+    fecha: "Fecha de embarque",
+    ayudaFecha:
+      "Cuándo sale el contenedor. Marca el horizonte del riesgo y el vencimiento de las opciones.",
+    diferencial: "Diferencial sobre Nueva York (USD/TM)",
+    ayudaDiferencial:
+      "La prima o descuento de SU cacao frente al futuro. Positivo si le pagan por encima. La cobertura NO fija este número.",
+    precio: "Precio pactado (USD/TM)",
+    ayudaPrecio:
+      "Con el precio cerrado el riesgo de mercado ya no existe: lo que queda vivo es el cambiario.",
+  },
+  ya_vendi: {
+    pasoCantidad: "2 · ¿Cuánto cacao le falta comprar?",
+    toneladas: "Toneladas métricas por comprar",
+    ayudaToneladas:
+      "Solo lo que todavía no tiene. Lo que ya está en bodega no corre riesgo de precio: ya lo pagó.",
+    // Deliberadamente distinto del total de bodega: aquí va el faltante,
+    // y repetir la cifra de arriba invitaría a copiarla sin pensar.
+    placeholderToneladas: "40",
+    pasoOperacion: "3 · La venta que ya cerró",
+    fecha: "Fecha de entrega",
+    ayudaFecha:
+      "Cuándo debe entregar. Marca hasta cuándo corre el riesgo de que el cacao suba de precio.",
+    diferencial: "Lo que paga al productor sobre Nueva York (USD/TM)",
+    ayudaDiferencial:
+      "Cuánto paga por encima del futuro para comprar el físico. Positivo si paga prima. La cobertura NO fija este número: es su riesgo de base.",
+    precio: "Precio al que cerró la venta (USD/TM)",
+    ayudaPrecio:
+      "El ingreso ya está fijo en este número. Todo el análisis mide qué tanto del margen se le come el costo de abastecerse.",
+  },
+};
+
 interface Campos {
   inventarioId: string;
   toneladas: string;
@@ -80,7 +140,7 @@ function desdeLote(lote: Lote | undefined): Campos {
 
 export function FormularioAnalisis({ lotes, loteInicial, series, bodega, desdeUrl }: Props) {
   const [estado, enviar, enviando] = useActionState(ejecutarAnalisis, INICIAL);
-  const [situacion, setSituacion] = useState<"tengo_cacao" | "ya_vendi">("tengo_cacao");
+  const [situacion, setSituacion] = useState<Situacion>("tengo_cacao");
   const [campos, setCampos] = useState<Campos>(() => {
     const base = desdeLote(lotes.find((l) => l.id === loteInicial));
     return {
@@ -91,6 +151,9 @@ export function FormularioAnalisis({ lotes, loteInicial, series, bodega, desdeUr
   });
 
   const errores = estado.errores ?? {};
+  const t = TEXTOS[situacion];
+  const esInventario = situacion === "tengo_cacao";
+
   const actualizar = (parcial: Partial<Campos>) =>
     setCampos((previo) => ({ ...previo, ...parcial }));
 
@@ -103,9 +166,14 @@ export function FormularioAnalisis({ lotes, loteInicial, series, bodega, desdeUr
 
   const contratos = Number(campos.toneladas.replace(",", ".")) / CC_TONELADAS_POR_CONTRATO;
 
+  // Quien ya vendió tiene el precio cerrado por definición: no es una
+  // elección suya, así que el selector no aparece y el valor viaja fijo.
+  const tipoContrato = esInventario ? campos.tipoContrato : "precio_fijo_usd";
+  const pidePrecio = tipoContrato === "precio_fijo_usd";
+
   return (
     <form action={enviar} className="space-y-6">
-      <input type="hidden" name="inventarioId" value={campos.inventarioId} />
+      <input type="hidden" name="inventarioId" value={esInventario ? campos.inventarioId : ""} />
       <input type="hidden" name="situacion" value={situacion} />
 
       {/* --- Paso 1: qué caso es. Decide el sentido de la cobertura. --- */}
@@ -157,249 +225,251 @@ export function FormularioAnalisis({ lotes, loteInicial, series, bodega, desdeUr
         </div>
       </fieldset>
 
-      {situacion === "ya_vendi" ? (
-        <div
-          role="alert"
-          className="space-y-2 rounded-lg border border-ambar/40 bg-ambar/5 p-4 text-sm leading-relaxed"
-        >
-          <p className="font-semibold">Este caso todavía no está cubierto.</p>
-          <p className="text-texto-suave">
-            Su cobertura sería <strong>comprar</strong> futuros, y el motor solo calcula
-            coberturas de venta. Darle un resultado sería darle el consejo al revés:
-            vender futuros cuando necesita comprarlos <em>duplicaría</em> su exposición
-            en lugar de cubrirla.
-          </p>
-          <p className="text-texto-suave">
-            Lo que sí puede hacer hoy: analizar el cacao que ya tiene en bodega.
-          </p>
-        </div>
-      ) : (
-        <>
-          {/* --- Paso 2: cuánto. Sale de la bodega si está sincronizada. --- */}
-          <fieldset className="space-y-4 rounded-lg border border-borde bg-superficie p-5">
-            <legend className="px-1 text-sm font-semibold">2 · ¿Cuánto cacao?</legend>
+      {/* --- Paso 2: cuánto. Sale de la bodega si está sincronizada. --- */}
+      <fieldset className="space-y-4 rounded-lg border border-borde bg-superficie p-5">
+        <legend className="px-1 text-sm font-semibold">{t.pasoCantidad}</legend>
 
-            {bodega.lotes > 0 ? (
-              <div className="flex flex-wrap items-center justify-between gap-3 rounded-md border border-borde bg-fondo p-3">
-                <div>
-                  <p className="text-sm">
-                    En bodega tiene{" "}
-                    <span className="tabular font-semibold">
-                      {fmtToneladas(bodega.toneladas)} TM
-                    </span>{" "}
-                    <span className="text-texto-suave">en {bodega.lotes} lotes</span>
-                  </p>
-                  <p className="mt-0.5 text-xs text-texto-suave">
-                    {bodega.costoCopKg
-                      ? `Costo ponderado ${usdTm(bodega.costoCopKg)} COP/kg sobre el ${(bodega.kgConCostoPorcentaje * 100).toFixed(0)} % de los kilos.`
-                      : "Ningún lote declara precio de compra en la hoja."}
-                  </p>
-                </div>
-                <button
-                  type="button"
-                  onClick={usarBodega}
-                  className="rounded-md border border-cacao px-3 py-1.5 text-sm text-cacao transition hover:bg-cacao hover:text-white"
-                >
-                  Usar todo
-                </button>
-              </div>
-            ) : (
-              <p className="rounded-md border border-dashed border-borde px-3 py-2 text-xs text-texto-suave">
-                No hay inventario sincronizado.{" "}
-                <Link href="/bodega" className="text-cacao hover:underline">
-                  Traerlo de la hoja
-                </Link>{" "}
-                rellena la cantidad y el costo automáticamente.
+        {bodega.lotes > 0 ? (
+          <div className="flex flex-wrap items-center justify-between gap-3 rounded-md border border-borde bg-fondo p-3">
+            <div>
+              <p className="text-sm">
+                En bodega tiene{" "}
+                <span className="tabular font-semibold">
+                  {fmtToneladas(bodega.toneladas)} TM
+                </span>{" "}
+                <span className="text-texto-suave">en {bodega.lotes} lotes</span>
               </p>
-            )}
-
-            {lotes.length > 0 ? (
-              <Campo id="lote" etiqueta="O partir de un lote guardado">
-                <select
-                  id="lote"
-                  value={campos.inventarioId}
-                  onChange={(e) =>
-                    setCampos(desdeLote(lotes.find((l) => l.id === e.target.value)))
-                  }
-                  className={CLASES_INPUT}
-                >
-                  <option value="">Sin lote</option>
-                  {lotes.map((lote) => (
-                    <option key={lote.id} value={lote.id}>
-                      {lote.nombre} · {lote.toneladas} TM
-                    </option>
-                  ))}
-                </select>
-              </Campo>
-            ) : null}
-
-            <div className="grid gap-5 sm:grid-cols-2">
-              <Campo
-                id="toneladas"
-                etiqueta="Toneladas métricas"
-                ayuda={
-                  Number.isFinite(contratos) && contratos > 0
-                    ? `Equivale a ${contratos.toLocaleString("es-CO", { maximumFractionDigits: 2 })} contratos CC de 10 TM.`
-                    : "Un contrato CC cubre exactamente 10 TM."
-                }
-                error={errores.toneladas}
-              >
-                <input
-                  id="toneladas"
-                  name="toneladas"
-                  inputMode="decimal"
-                  required
-                  placeholder="15,275"
-                  value={campos.toneladas}
-                  onChange={(e) => actualizar({ toneladas: e.target.value })}
-                  className={CLASES_INPUT}
-                />
-              </Campo>
-
-              <Campo
-                id="costoCopKg"
-                etiqueta="Costo de adquisición (COP/kg)"
-                ayuda="Lo que le costó el kilo puesto en bodega. Define su punto de equilibrio."
-                error={errores.costoCopKg}
-              >
-                <input
-                  id="costoCopKg"
-                  name="costoCopKg"
-                  inputMode="decimal"
-                  required
-                  placeholder="16.468"
-                  value={campos.costoCopKg}
-                  onChange={(e) => actualizar({ costoCopKg: e.target.value })}
-                  className={CLASES_INPUT}
-                />
-              </Campo>
+              <p className="mt-0.5 text-xs text-texto-suave">
+                {esInventario
+                  ? bodega.costoCopKg
+                    ? `Costo ponderado ${usdTm(bodega.costoCopKg)} COP/kg sobre el ${(bodega.kgConCostoPorcentaje * 100).toFixed(0)} % de los kilos.`
+                    : "Ningún lote declara precio de compra en la hoja."
+                  : "Ese cacao ya está pagado: descuéntelo de lo que debe entregar y ponga abajo solo el faltante."}
+              </p>
             </div>
-          </fieldset>
-
-          {/* --- Paso 3: lo que la hoja no sabe: decisiones comerciales. --- */}
-          <fieldset className="space-y-4 rounded-lg border border-borde bg-superficie p-5">
-            <legend className="px-1 text-sm font-semibold">3 · Su operación</legend>
-            <p className="text-xs leading-relaxed text-texto-suave">
-              Esto no está en la hoja de inventario: son decisiones suyas y hay que
-              ponerlas a mano.
-            </p>
-
-            <div className="grid gap-5 sm:grid-cols-2">
-              <Campo
-                id="fechaEmbarque"
-                etiqueta="Fecha de embarque"
-                ayuda="Cuándo sale el contenedor. Marca el horizonte del riesgo y el vencimiento de las opciones."
-                error={errores.fechaEmbarque}
+            {esInventario ? (
+              <button
+                type="button"
+                onClick={usarBodega}
+                className="rounded-md border border-cacao px-3 py-1.5 text-sm text-cacao transition hover:bg-cacao hover:text-white"
               >
-                <input
-                  id="fechaEmbarque"
-                  name="fechaEmbarque"
-                  type="date"
-                  required
-                  value={campos.fechaEmbarque}
-                  onChange={(e) => actualizar({ fechaEmbarque: e.target.value })}
-                  className={CLASES_INPUT}
-                />
-              </Campo>
-
-              <Campo
-                id="diferencialUsdTm"
-                etiqueta="Diferencial sobre Nueva York (USD/TM)"
-                ayuda="La prima o descuento de SU cacao frente al futuro. Positivo si le pagan por encima. La cobertura NO fija este número."
-                error={errores.diferencialUsdTm}
-              >
-                <input
-                  id="diferencialUsdTm"
-                  name="diferencialUsdTm"
-                  inputMode="decimal"
-                  required
-                  placeholder="250"
-                  value={campos.diferencialUsdTm}
-                  onChange={(e) => actualizar({ diferencialUsdTm: e.target.value })}
-                  className={CLASES_INPUT}
-                />
-              </Campo>
-            </div>
-
-            <Campo
-              id="tipoContrato"
-              etiqueta="¿Cómo está pactada la venta?"
-              error={errores.tipoContrato}
-            >
-              <select
-                id="tipoContrato"
-                name="tipoContrato"
-                value={campos.tipoContrato}
-                onChange={(e) => actualizar({ tipoContrato: e.target.value })}
-                className={CLASES_INPUT}
-              >
-                <option value="sin_contrato">Aún sin comprador</option>
-                <option value="por_fijar_ny">Comprador con precio por fijar contra NY</option>
-                <option value="precio_fijo_usd">Precio ya cerrado en USD</option>
-              </select>
-            </Campo>
-
-            {campos.tipoContrato === "precio_fijo_usd" ? (
-              <Campo
-                id="precioVentaUsdTm"
-                etiqueta="Precio pactado (USD/TM)"
-                ayuda="Con el precio cerrado el riesgo de mercado ya no existe: lo que queda vivo es el cambiario."
-                error={errores.precioVentaUsdTm}
-              >
-                <input
-                  id="precioVentaUsdTm"
-                  name="precioVentaUsdTm"
-                  inputMode="decimal"
-                  placeholder="6.211"
-                  value={campos.precioVentaUsdTm}
-                  onChange={(e) => actualizar({ precioVentaUsdTm: e.target.value })}
-                  className={CLASES_INPUT}
-                />
-              </Campo>
-            ) : (
-              <input type="hidden" name="precioVentaUsdTm" value="" />
-            )}
-
-            {series.length > 0 ? (
-              <Campo
-                id="origenCacao"
-                etiqueta="Contrato de referencia"
-                ayuda="La serie de precios contra la que se calcula. Un vencimiento concreto es más preciso que el continuo; verifique que siga vivo."
-              >
-                <select id="origenCacao" name="origenCacao" className={CLASES_INPUT}>
-                  <option value="">Fuente en vivo (continuo)</option>
-                  {series.map((serie) => (
-                    <option
-                      key={`${serie.simbolo}|${serie.fuente}`}
-                      value={`${serie.simbolo}|${serie.fuente}`}
-                    >
-                      {serie.simbolo} · {NOMBRE_FUENTE[serie.fuente] ?? serie.fuente} ·{" "}
-                      {serie.barras} barras hasta {serie.ultima}
-                    </option>
-                  ))}
-                </select>
-              </Campo>
+                Usar todo
+              </button>
             ) : null}
-          </fieldset>
+          </div>
+        ) : (
+          <p className="rounded-md border border-dashed border-borde px-3 py-2 text-xs text-texto-suave">
+            No hay inventario sincronizado.{" "}
+            <Link href="/bodega" className="text-cacao hover:underline">
+              Traerlo de la hoja
+            </Link>{" "}
+            {esInventario
+              ? "rellena la cantidad y el costo automáticamente."
+              : "le dice cuánto cacao ya tiene y cuánto le falta comprar."}
+          </p>
+        )}
 
-          {estado.mensaje ? (
-            <p
-              role="alert"
-              className="rounded-md border border-negativo/40 bg-negativo/5 px-3 py-2 text-sm text-negativo"
+        {esInventario && lotes.length > 0 ? (
+          <Campo id="lote" etiqueta="O partir de un lote guardado">
+            <select
+              id="lote"
+              value={campos.inventarioId}
+              onChange={(e) => setCampos(desdeLote(lotes.find((l) => l.id === e.target.value)))}
+              className={CLASES_INPUT}
             >
-              {estado.mensaje}
-            </p>
-          ) : null}
+              <option value="">Sin lote</option>
+              {lotes.map((lote) => (
+                <option key={lote.id} value={lote.id}>
+                  {lote.nombre} · {lote.toneladas} TM
+                </option>
+              ))}
+            </select>
+          </Campo>
+        ) : null}
 
-          <button
-            type="submit"
-            disabled={enviando}
-            className="w-full rounded-md bg-cacao px-3 py-2 text-sm font-medium text-white transition hover:bg-cacao-claro disabled:opacity-60 sm:w-auto"
+        <div className="grid gap-5 sm:grid-cols-2">
+          <Campo
+            id="toneladas"
+            etiqueta={t.toneladas}
+            ayuda={
+              Number.isFinite(contratos) && contratos > 0
+                ? `${t.ayudaToneladas} Equivale a ${contratos.toLocaleString("es-CO", { maximumFractionDigits: 2 })} contratos CC de 10 TM.`
+                : `${t.ayudaToneladas} Un contrato CC cubre exactamente 10 TM.`
+            }
+            error={errores.toneladas}
           >
-            {enviando ? "Calculando…" : "Analizar cobertura"}
-          </button>
-        </>
-      )}
+            <input
+              id="toneladas"
+              name="toneladas"
+              inputMode="decimal"
+              required
+              placeholder={t.placeholderToneladas}
+              value={campos.toneladas}
+              onChange={(e) => actualizar({ toneladas: e.target.value })}
+              className={CLASES_INPUT}
+            />
+          </Campo>
+
+          {esInventario ? (
+            <Campo
+              id="costoCopKg"
+              etiqueta="Costo de adquisición (COP/kg)"
+              ayuda="Lo que le costó el kilo puesto en bodega. Define su punto de equilibrio."
+              error={errores.costoCopKg}
+            >
+              <input
+                id="costoCopKg"
+                name="costoCopKg"
+                inputMode="decimal"
+                required
+                placeholder="16.468"
+                value={campos.costoCopKg}
+                onChange={(e) => actualizar({ costoCopKg: e.target.value })}
+                className={CLASES_INPUT}
+              />
+            </Campo>
+          ) : (
+            /* Este cacao todavía no se ha comprado: no hay costo que declarar,
+               y pedirlo invitaría a inventar el número que el análisis busca. */
+            <p className="self-end rounded-md border border-dashed border-borde px-3 py-2 text-xs leading-relaxed text-texto-suave">
+              No le pedimos el costo del cacao: todavía no lo ha comprado. Cuánto le
+              costará es justamente lo que calcula este análisis.
+            </p>
+          )}
+        </div>
+      </fieldset>
+
+      {/* --- Paso 3: lo que la hoja no sabe: decisiones comerciales. --- */}
+      <fieldset className="space-y-4 rounded-lg border border-borde bg-superficie p-5">
+        <legend className="px-1 text-sm font-semibold">{t.pasoOperacion}</legend>
+        <p className="text-xs leading-relaxed text-texto-suave">
+          Esto no está en la hoja de inventario: son decisiones suyas y hay que
+          ponerlas a mano.
+        </p>
+
+        <div className="grid gap-5 sm:grid-cols-2">
+          <Campo
+            id="fechaEmbarque"
+            etiqueta={t.fecha}
+            ayuda={t.ayudaFecha}
+            error={errores.fechaEmbarque}
+          >
+            <input
+              id="fechaEmbarque"
+              name="fechaEmbarque"
+              type="date"
+              required
+              value={campos.fechaEmbarque}
+              onChange={(e) => actualizar({ fechaEmbarque: e.target.value })}
+              className={CLASES_INPUT}
+            />
+          </Campo>
+
+          <Campo
+            id="diferencialUsdTm"
+            etiqueta={t.diferencial}
+            ayuda={t.ayudaDiferencial}
+            error={errores.diferencialUsdTm}
+          >
+            <input
+              id="diferencialUsdTm"
+              name="diferencialUsdTm"
+              inputMode="decimal"
+              required
+              placeholder="250"
+              value={campos.diferencialUsdTm}
+              onChange={(e) => actualizar({ diferencialUsdTm: e.target.value })}
+              className={CLASES_INPUT}
+            />
+          </Campo>
+        </div>
+
+        {esInventario ? (
+          <Campo
+            id="tipoContrato"
+            etiqueta="¿Cómo está pactada la venta?"
+            error={errores.tipoContrato}
+          >
+            <select
+              id="tipoContrato"
+              name="tipoContrato"
+              value={campos.tipoContrato}
+              onChange={(e) => actualizar({ tipoContrato: e.target.value })}
+              className={CLASES_INPUT}
+            >
+              <option value="sin_contrato">Aún sin comprador</option>
+              <option value="por_fijar_ny">Comprador con precio por fijar contra NY</option>
+              <option value="precio_fijo_usd">Precio ya cerrado en USD</option>
+            </select>
+          </Campo>
+        ) : (
+          <input type="hidden" name="tipoContrato" value="precio_fijo_usd" />
+        )}
+
+        {pidePrecio ? (
+          <Campo
+            id="precioVentaUsdTm"
+            etiqueta={t.precio}
+            ayuda={t.ayudaPrecio}
+            error={errores.precioVentaUsdTm}
+          >
+            <input
+              id="precioVentaUsdTm"
+              name="precioVentaUsdTm"
+              inputMode="decimal"
+              required={!esInventario}
+              placeholder="6.211"
+              value={campos.precioVentaUsdTm}
+              onChange={(e) => actualizar({ precioVentaUsdTm: e.target.value })}
+              className={CLASES_INPUT}
+            />
+          </Campo>
+        ) : (
+          <input type="hidden" name="precioVentaUsdTm" value="" />
+        )}
+
+        {series.length > 0 ? (
+          <Campo
+            id="origenCacao"
+            etiqueta="Contrato de referencia"
+            ayuda="La serie de precios contra la que se calcula. Un vencimiento concreto es más preciso que el continuo; verifique que siga vivo."
+          >
+            <select id="origenCacao" name="origenCacao" className={CLASES_INPUT}>
+              <option value="">Fuente en vivo (continuo)</option>
+              {series.map((serie) => (
+                <option
+                  key={`${serie.simbolo}|${serie.fuente}`}
+                  value={`${serie.simbolo}|${serie.fuente}`}
+                >
+                  {serie.simbolo} · {NOMBRE_FUENTE[serie.fuente] ?? serie.fuente} ·{" "}
+                  {serie.barras} barras hasta {serie.ultima}
+                </option>
+              ))}
+            </select>
+          </Campo>
+        ) : null}
+      </fieldset>
+
+      {estado.mensaje ? (
+        <p
+          role="alert"
+          className="rounded-md border border-negativo/40 bg-negativo/5 px-3 py-2 text-sm text-negativo"
+        >
+          {estado.mensaje}
+        </p>
+      ) : null}
+
+      <button
+        type="submit"
+        disabled={enviando}
+        className="w-full rounded-md bg-cacao px-3 py-2 text-sm font-medium text-white transition hover:bg-cacao-claro disabled:opacity-60 sm:w-auto"
+      >
+        {enviando
+          ? "Calculando…"
+          : esInventario
+            ? "Analizar cobertura"
+            : "Analizar cobertura de compra"}
+      </button>
     </form>
   );
 }

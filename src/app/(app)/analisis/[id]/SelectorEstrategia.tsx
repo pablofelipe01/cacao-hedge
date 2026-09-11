@@ -110,9 +110,9 @@ export function SelectorEstrategia({ evaluaciones, idInicial, futuroActual }: Pr
           <div className="rounded-lg border border-borde bg-superficie p-4">
             <h3 className="text-sm font-semibold">Riesgo de liquidez: llamadas de margen</h3>
             <p className="mt-1 text-xs leading-relaxed text-texto-suave">
-              Estar corto en futuros hace perder cuando el precio sube. Esa pérdida no es
-              económica —el cacao en bodega sube al mismo tiempo— pero sí es un desembolso
-              de caja inmediato contra la cámara de compensación.
+              {activa.resumen.estrategia.sentido === "larga"
+                ? "Estar comprado en futuros hace perder cuando el precio baja. Esa pérdida no es económica —el cacao que tiene que comprar baja al mismo tiempo— pero sí es un desembolso de caja inmediato contra la cámara de compensación."
+                : "Estar corto en futuros hace perder cuando el precio sube. Esa pérdida no es económica —el cacao en bodega sube al mismo tiempo— pero sí es un desembolso de caja inmediato contra la cámara de compensación."}
             </p>
             <dl className="mt-3 grid gap-3 text-sm sm:grid-cols-3">
               <div>
@@ -122,7 +122,10 @@ export function SelectorEstrategia({ evaluaciones, idInicial, futuroActual }: Pr
                 </dd>
               </div>
               <div>
-                <dt className="text-xs text-texto-suave">Primera llamada si el futuro sube a</dt>
+                <dt className="text-xs text-texto-suave">
+                  Primera llamada si el futuro{" "}
+                  {activa.resumen.estrategia.sentido === "larga" ? "baja" : "sube"} a
+                </dt>
                 <dd className="tabular font-medium">
                   {usdTm(activa.margen.precioDisparadorUsdTm)} USD/TM
                 </dd>

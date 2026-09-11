@@ -17,16 +17,59 @@
 
 export type TipoContratoVenta = "precio_fijo_usd" | "por_fijar_ny" | "sin_contrato";
 
-/** Lote de cacao físico sobre el que se evalúa la cobertura. */
+/**
+ * Las dos situaciones del negocio, con riesgos opuestos.
+ *
+ * - `inventario_sin_vender`: el cacao está en bodega y falta venderlo. El
+ *   costo de adquisición ya está hundido y conocido; el ingreso flota con
+ *   el precio. El riesgo es que BAJE, y se cubre VENDIENDO futuros.
+ *
+ * - `venta_sin_comprar`: la venta está cerrada y falta comprar el físico.
+ *   El ingreso ya está pactado; el costo flota con el precio. El riesgo es
+ *   que SUBA, y se cubre COMPRANDO futuros.
+ *
+ * No es una variante del mismo cálculo: invierte el signo de la cobertura,
+ * cambia el instrumento de protección (call en vez de put), voltea cuál es
+ * el escenario adverso y cambia el sentido de las llamadas de margen.
+ */
+export type TipoOperacion = "inventario_sin_vender" | "venta_sin_comprar";
+
+/** Sentido de la posición en bolsa. Corta vende futuros; larga los compra. */
+export type SentidoCobertura = "corta" | "larga";
+
+/** La cobertura de cada situación va en sentido contrario al riesgo. */
+export function sentidoDe(operacion: TipoOperacion): SentidoCobertura {
+  return operacion === "inventario_sin_vender" ? "corta" : "larga";
+}
+
+/** Lote de cacao sobre el que se evalúa la cobertura. */
 export interface Lote {
+  /** Situación del negocio. Por defecto, inventario en bodega sin vender. */
+  tipoOperacion?: TipoOperacion;
   toneladas: number;
+  /**
+   * Costo de adquisición ya pagado, COP/kg.
+   *
+   * Solo aplica a `inventario_sin_vender`: en `venta_sin_comprar` el cacao
+   * todavía no se ha comprado y el costo es justamente lo incierto.
+   */
   costoCopKg: number;
-  /** Días calendario desde hoy hasta el embarque. */
+  /** Días calendario hasta el embarque (o hasta la compra del físico). */
   diasAEmbarque: number;
-  /** Base esperada frente al futuro NY. Positivo = prima. */
+  /**
+   * Base frente al futuro NY, USD/TM. Positivo = prima.
+   *
+   * En `inventario_sin_vender` es la prima que RECIBE al vender; en
+   * `venta_sin_comprar`, la que PAGA al comprarle al productor.
+   */
   diferencialUsdTm: number;
   tipoContrato: TipoContratoVenta;
-  /** Solo si el contrato es a precio fijo en USD. */
+  /**
+   * Precio de venta pactado, USD/TM.
+   *
+   * Obligatorio en `venta_sin_comprar`: es el ingreso ya cerrado, el dato
+   * que hace que la operación tenga sentido.
+   */
   precioVentaUsdTm?: number | null;
 }
 
@@ -98,15 +141,30 @@ export interface Escenario {
 
 export type TipoEstrategia =
   | "sin_cobertura"
+  /** Futuros. El sentido lo fija `Estrategia.sentido`, no el tipo. */
   | "futuros"
+  /** Pone piso al precio de venta. Solo tiene sentido con inventario. */
   | "put_protector"
+  /** Pone techo al precio de compra. Solo tiene sentido con venta cerrada. */
+  | "call_protector"
+  /** Compra put y vende call: acota la caída cediendo la subida. */
   | "collar"
+  /** Compra call y vende put: acota la subida cediendo la caída. */
+  | "collar_inverso"
   | "escalonada";
 
 /** Definición de una estrategia a evaluar. */
 export interface Estrategia {
   id: string;
   tipo: TipoEstrategia;
+  /**
+   * Sentido de la posición en bolsa.
+   *
+   * Va explícito y no deducido del tipo porque «futuros» y «escalonada»
+   * existen en ambos sentidos: es justo el dato que distingue cubrir un
+   * inventario de cubrir una compra pendiente.
+   */
+  sentido: SentidoCobertura;
   nombre: string;
   descripcion: string;
   /** Fracción del inventario cubierta (0 a 1). */
@@ -132,10 +190,17 @@ export interface Estrategia {
 /** Descomposición del resultado de una estrategia en un escenario. */
 export interface ResultadoEscenario {
   escenario: Escenario;
-  /** Precio efectivo de venta del físico, USD/TM. */
+  /** Precio efectivo del físico en el escenario, USD/TM. */
   precioFisicoUsdTm: number;
   /** Ingreso por la venta del físico, USD. */
   ingresoFisicoUsd: number;
+  /**
+   * Costo de comprar el físico, USD.
+   *
+   * Cero cuando el cacao ya está en bodega: ese costo ya se pagó y vive en
+   * `costoAdquisicionCop`.
+   */
+  costoFisicoUsd: number;
   /** Resultado de la cobertura (futuros y/o opciones), USD. */
   resultadoCoberturaUsd: number;
   /** Comisiones y primas, USD (siempre ≤ 0). */

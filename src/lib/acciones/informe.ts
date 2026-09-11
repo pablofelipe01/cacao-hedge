@@ -6,7 +6,7 @@ import { crearClienteServidor, obtenerUsuario } from "@/lib/supabase/server";
 import { ErrorInforme, generarInforme } from "@/lib/anthropic/informe";
 import { construirResumen } from "@/lib/anthropic/resumen";
 import type { EvaluacionEstrategia, Recomendacion } from "@/lib/engine/index";
-import type { Lote, Mercado, Supuestos } from "@/lib/engine/tipos";
+import type { Lote, Mercado, Supuestos, TipoOperacion } from "@/lib/engine/tipos";
 import type { Json } from "@/types/database";
 
 export type EstadoInforme = { error?: string; generado?: boolean };
@@ -48,6 +48,7 @@ export async function generarInformeNarrativo(
     tipoContrato: Lote["tipoContrato"];
     precioVentaUsdTm?: string;
     fechaEmbarque: string;
+    situacion?: "tengo_cacao" | "ya_vendi";
   };
   const mercado = analisis.mercado as unknown as Mercado & {
     procedencia?: { cacao: { fuente: string; simbolo: string; barras: number } };
@@ -63,14 +64,22 @@ export async function generarInformeNarrativo(
     };
     advertencias: string[];
     advertenciasDatos?: string[];
+    operacion?: TipoOperacion;
   };
+
+  // Los análisis guardados antes del caso A no traen `operacion`: todos
+  // eran de inventario, así que ese es el valor que corresponde.
+  const tipoOperacion: TipoOperacion =
+    resultados.operacion ??
+    (entradas.situacion === "ya_vendi" ? "venta_sin_comprar" : "inventario_sin_vender");
 
   const precio = Number(String(entradas.precioVentaUsdTm ?? "").replace(",", "."));
   const lote: Lote = {
     toneladas: entradas.toneladas,
-    costoCopKg: entradas.costoCopKg,
+    costoCopKg: tipoOperacion === "venta_sin_comprar" ? 0 : entradas.costoCopKg,
     diasAEmbarque: entradas.diasAEmbarque,
     diferencialUsdTm: entradas.diferencialUsdTm,
+    tipoOperacion,
     tipoContrato: entradas.tipoContrato,
     precioVentaUsdTm: Number.isFinite(precio) ? precio : null,
   };

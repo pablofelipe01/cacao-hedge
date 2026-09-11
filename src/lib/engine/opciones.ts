@@ -169,3 +169,53 @@ export function strikeCollarCostoCero(
 
   return { strikeCall: mejorStrike, primaNetaUsdTm: mejorNeta };
 }
+
+/**
+ * Busca el strike del put que deja el collar inverso lo más cerca posible
+ * de costo cero, dado un call ya elegido.
+ *
+ * Es el espejo de `strikeCollarCostoCero`: quien debe comprar el físico
+ * pone un techo comprando un call y lo financia vendiendo un put, con lo
+ * que renuncia a la rebaja si el precio cae por debajo de ese piso.
+ *
+ * La prima del put crece con el strike, así que se barre hacia abajo
+ * desde el dinero y se devuelve el strike que minimiza la prima neta en
+ * valor absoluto. El suelo del barrido (un tercio del futuro) acota la
+ * búsqueda sin recortar ningún caso realista.
+ */
+export function strikeCollarInversoCostoCero(
+  parametrosCall: ParametrosOpcion,
+  supuestos: Pick<Supuestos, "tasaLibreRiesgo">,
+  paso = 25,
+): { strikePut: number; primaNetaUsdTm: number } {
+  const primaCall = valorarOpcion("call", parametrosCall).primaUsdTm;
+
+  const base = {
+    futuro: parametrosCall.futuro,
+    anios: parametrosCall.anios,
+    volatilidad: parametrosCall.volatilidad,
+    tasa: supuestos.tasaLibreRiesgo,
+  };
+
+  const desde = redondearStrike(parametrosCall.futuro, paso);
+  const hasta = redondearStrike(parametrosCall.futuro / 3, paso);
+
+  let mejorStrike = desde;
+  let mejorNeta = primaCall - valorarOpcion("put", { ...base, strike: desde }).primaUsdTm;
+
+  for (let strike = desde - paso; strike >= hasta && strike > 0; strike -= paso) {
+    const primaPut = valorarOpcion("put", { ...base, strike }).primaUsdTm;
+    const neta = primaCall - primaPut;
+
+    if (Math.abs(neta) < Math.abs(mejorNeta)) {
+      mejorStrike = strike;
+      mejorNeta = neta;
+    }
+
+    // Pasado el cruce la prima del put solo sigue cayendo: la neta ya no
+    // puede acercarse más a cero.
+    if (neta > 0 && Math.abs(neta) > Math.abs(mejorNeta)) break;
+  }
+
+  return { strikePut: mejorStrike, primaNetaUsdTm: mejorNeta };
+}
