@@ -43,6 +43,8 @@ interface EntradasGuardadas {
   diferencialUsdTm: number;
   tipoContrato: string;
   diasAEmbarque: number;
+  /** Ausente en los análisis guardados antes del diferencial porcentual. */
+  modoDiferencial?: "absoluto" | "porcentual";
 }
 
 /**
@@ -84,7 +86,20 @@ export default async function PaginaResultados({ params }: PageProps<"/analisis/
   // cerrada, lo que espera pagar para abastecerse. Mismo cálculo, lectura
   // opuesta: etiquetarlo mal invierte el sentido de toda la pantalla.
   const esInventario = (resultados.operacion ?? "inventario_sin_vender") === "inventario_sin_vender";
-  const nominalUsd = entradas.toneladas * (mercado.futuroUsdTm + entradas.diferencialUsdTm);
+
+  // Un diferencial porcentual no se suma al futuro: lo escala. Sumarlo
+  // daba un nominal inflado —237.500 USD donde eran 182.407— y una
+  // cabecera que anunciaba «−24 USD/TM» cuando el usuario había escrito
+  // «−23,5 %».
+  const esDifPorcentual = entradas.modoDiferencial === "porcentual";
+  const precioFisicoUsdTm = esDifPorcentual
+    ? mercado.futuroUsdTm * (1 + entradas.diferencialUsdTm / 100)
+    : mercado.futuroUsdTm + entradas.diferencialUsdTm;
+  const nominalUsd = entradas.toneladas * precioFisicoUsdTm;
+
+  const diferencialLegible = esDifPorcentual
+    ? `${entradas.diferencialUsdTm > 0 ? "+" : ""}${entradas.diferencialUsdTm.toLocaleString("es-CO", { maximumFractionDigits: 2 })} % de NY`
+    : `${entradas.diferencialUsdTm > 0 ? "+" : ""}${usdTm(entradas.diferencialUsdTm)} USD/TM`;
 
   const { subcobertura, sobrecobertura } = resultados.dimensionamiento;
   const alternativasDimensionamiento =
@@ -105,9 +120,7 @@ export default async function PaginaResultados({ params }: PageProps<"/analisis/
           {toneladas(entradas.toneladas)} TM{" "}
           {esInventario ? "en bodega" : "por comprar"} ·{" "}
           {esInventario ? "embarque" : "entrega"} {fechaLegible(entradas.fechaEmbarque)} (
-          {entradas.diasAEmbarque} días) · diferencial{" "}
-          {entradas.diferencialUsdTm > 0 ? "+" : ""}
-          {usdTm(entradas.diferencialUsdTm)} USD/TM
+          {entradas.diasAEmbarque} días) · diferencial {diferencialLegible}
         </p>
       </header>
 
@@ -141,7 +154,13 @@ export default async function PaginaResultados({ params }: PageProps<"/analisis/
             etiqueta={esInventario ? "Exposición nominal" : "Costo esperado de la compra"}
             valor={cop(nominalUsd * mercado.trm)}
             unidad="COP"
-            detalle={`${usdTm(nominalUsd)} USD ${esInventario ? "al precio efectivo esperado" : "a la bolsa de hoy más el diferencial"}`}
+            detalle={`${usdTm(nominalUsd)} USD ${
+              esInventario
+                ? "al precio efectivo esperado"
+                : esDifPorcentual
+                  ? `a ${usdTm(precioFisicoUsdTm)} USD/TM, la bolsa de hoy menos su descuento`
+                  : "a la bolsa de hoy más el diferencial"
+            }`}
           />
           <TarjetaMetrica
             etiqueta={esInventario ? "Punto de equilibrio" : "Precio máximo de compra"}
