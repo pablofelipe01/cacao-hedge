@@ -42,6 +42,18 @@ interface EntradasGuardadas {
   diasAEmbarque: number;
 }
 
+/**
+ * Tiempo máximo de la función, en segundos.
+ *
+ * Las acciones de servidor se ejecutan en el contexto de la página desde
+ * la que se invocan, y generar el informe narrativo tarda alrededor de 55
+ * segundos: con el límite por defecto de 10 s de una función serverless
+ * se cortaría siempre. 60 es el techo del plan Hobby de Vercel; si el
+ * modelo tarda más, hace falta un plan con límite mayor o bajar el
+ * esfuerzo de redacción.
+ */
+export const maxDuration = 60;
+
 export default async function PaginaResultados({ params }: PageProps<"/analisis/[id]">) {
   const { id } = await params;
   const supabase = await crearClienteServidor();

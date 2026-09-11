@@ -10,7 +10,7 @@ export default async function PaginaDashboard() {
 
   // RLS ya restringe las filas al usuario de la sesión: no hace falta
   // filtrar por user_id en la consulta.
-  const [{ data: lotes, error }, { data: analisis }] = await Promise.all([
+  const [{ data: lotes, error }, { data: analisis }, { data: bodega }] = await Promise.all([
     supabase
       .from("inventarios")
       .select("id, nombre, toneladas, ubicacion, fecha_embarque, costo_cop_kg, diferencial_usd_tm")
@@ -21,7 +21,15 @@ export default async function PaginaDashboard() {
       .select("id, created_at, entradas, inventario_id")
       .order("created_at", { ascending: false })
       .limit(5),
+    supabase
+      .from("inventario_bodega")
+      .select("cantidad_disponible_kg, valor_compra_cop_kg, sincronizado_en"),
   ]);
+
+  // Inventario real traído de la hoja operativa, si ya se sincronizó.
+  const filasBodega = bodega ?? [];
+  const bodegaKg = filasBodega.reduce((a, f) => a + Number(f.cantidad_disponible_kg), 0);
+  const bodegaTm = bodegaKg / 1000;
 
   const toneladasTotales = (lotes ?? []).reduce((acc, l) => acc + Number(l.toneladas), 0);
 
@@ -49,6 +57,31 @@ export default async function PaginaDashboard() {
           </Link>
         </div>
       </header>
+
+      {filasBodega.length > 0 ? (
+        <section
+          aria-labelledby="bodega"
+          className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-borde bg-superficie px-4 py-3"
+        >
+          <div>
+            <h2 id="bodega" className="text-xs font-medium text-texto-suave">
+              Disponible en bodega (hoja operativa)
+            </h2>
+            <p className="tabular mt-0.5 text-lg font-semibold">
+              {toneladas(bodegaTm)} <span className="text-sm font-normal text-texto-suave">TM</span>
+              <span className="ml-3 text-sm font-normal text-texto-suave">
+                {(bodegaTm / CC_TONELADAS_POR_CONTRATO).toLocaleString("es-CO", {
+                  maximumFractionDigits: 2,
+                })}{" "}
+                contratos CC · {filasBodega.length} lotes
+              </span>
+            </p>
+          </div>
+          <Link href="/bodega" className="text-sm text-cacao hover:underline">
+            Ver bodega
+          </Link>
+        </section>
+      ) : null}
 
       {error ? (
         <p role="alert" className="rounded-md border border-negativo/40 bg-negativo/5 px-3 py-2 text-sm text-negativo">

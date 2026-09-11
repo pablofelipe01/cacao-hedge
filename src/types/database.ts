@@ -64,6 +64,36 @@ export type Database = {
         Update: Partial<Database["public"]["Tables"]["inventarios"]["Insert"]>;
         Relationships: [];
       };
+      inventario_bodega: {
+        Row: {
+          id: string;
+          user_id: string;
+          hoja_id: string;
+          fila: number;
+          fecha_ingreso: string | null;
+          codigo_procedencia: string;
+          valor_compra_cop_kg: number | null;
+          cantidad_ingresada_kg: number | null;
+          cantidad_salida_kg: number | null;
+          cantidad_disponible_kg: number;
+          sincronizado_en: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          hoja_id: string;
+          fila: number;
+          fecha_ingreso?: string | null;
+          codigo_procedencia: string;
+          valor_compra_cop_kg?: number | null;
+          cantidad_ingresada_kg?: number | null;
+          cantidad_salida_kg?: number | null;
+          cantidad_disponible_kg: number;
+          sincronizado_en?: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["inventario_bodega"]["Insert"]>;
+        Relationships: [];
+      };
       precios: {
         Row: {
           id: number;

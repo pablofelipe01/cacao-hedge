@@ -140,6 +140,42 @@ para complementarlo, no para repetirlo.
 
 ---
 
+## Inventario real desde la hoja operativa
+
+`/bodega` refleja la columna **CANTIDAD DISPONIBLE EN BODEGA** de la hoja de
+cálculo de operaciones. La hoja manda: cada sincronización reemplaza lo que
+hubiera en la tabla `inventario_bodega`, y se guarda el número de fila de origen
+para poder rastrear cualquier cifra hasta la celda de donde salió.
+
+### Dos trampas de la hoja que el parser resuelve
+
+**Hay dos columnas llamadas «CANTIDAD DISPONIBLE EN BODEGA».** Una en la sección
+ENTRADAS (columna O, la que cuenta) y otra en CLASIFICACION desglosada por
+calidad. Buscar la columna por nombre a secas tomaría la equivocada; el parser
+usa la primera y verifica que vaya después de «CANTIDAD SALIDA», fallando con un
+mensaje claro si alguien reordena la hoja.
+
+**El encabezado ocupa tres filas** y los números vienen en convención colombiana
+entrecomillada (`"1580,6"`), con errores de fórmula `#DIV/0!` en las filas sin
+datos. Las fechas usan meses abreviados en español (`9-sept-2026`).
+
+El importador coteja su propia suma contra el total que declara la hoja y avisa
+si no cuadran, en vez de dar por buena una cifra que quizá perdió filas.
+
+### Lo que hay que saber al usarlo
+
+La lectura usa la exportación pública a CSV de Google, que funciona cuando la
+hoja está compartida por enlace. Esa comodidad tiene contrapartida: **cualquiera
+con el enlace puede leer el inventario**. Es una decisión del dueño de la hoja,
+no de esta aplicación, pero conviene tenerla presente.
+
+La hoja sabe cuánto cacao hay y a qué se compró; no sabe la fecha de embarque ni
+el diferencial pactado, que son decisiones comerciales. Por eso `/bodega` no
+sustituye a `inventarios`: prefija la cantidad y el costo en el formulario de
+análisis, y el resto lo pone el usuario.
+
+---
+
 ## Historial y supuestos (fase 6)
 
 **El historial compara decisiones, no recalcula.** Cada análisis guardó su propia
@@ -230,6 +266,7 @@ pie del documento.
 | `/inventarios/nuevo` | Alta de lote; al guardar abre el análisis precargado |
 | `/analisis/nuevo` | Formulario del análisis, rellenable desde un lote |
 | `/analisis/[id]` | Resultados: métricas, tabla comparativa, payoff, heatmap, Monte Carlo y márgenes |
+| `/bodega` | Inventario real sincronizado desde la hoja operativa |
 | `/inventarios/[id]` | Ficha del lote e historial de sus análisis |
 | `/configuracion` | Supuestos de cálculo del usuario |
 | `/importar` | Importación de históricos en CSV a la caché (arrastrar y soltar) |

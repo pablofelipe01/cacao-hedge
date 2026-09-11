@@ -22,6 +22,8 @@ interface Props {
   lotes: Lote[];
   loteInicial: string | null;
   series: SerieDisponible[];
+  /** Cantidad y costo traídos del inventario real de bodega. */
+  desdeBodega?: { toneladas: string | null; costoCopKg: string | null };
 }
 
 const INICIAL: EstadoFormulario = {};
@@ -70,11 +72,17 @@ const NOMBRE_FUENTE: Record<string, string> = {
   datos_gov_co: "datos.gov.co",
 };
 
-export function FormularioAnalisis({ lotes, loteInicial, series }: Props) {
+export function FormularioAnalisis({ lotes, loteInicial, series, desdeBodega }: Props) {
   const [estado, enviar, enviando] = useActionState(ejecutarAnalisis, INICIAL);
-  const [campos, setCampos] = useState<Campos>(() =>
-    desdeLote(lotes.find((l) => l.id === loteInicial)),
-  );
+  const [campos, setCampos] = useState<Campos>(() => {
+    const base = desdeLote(lotes.find((l) => l.id === loteInicial));
+    // Lo que viene de bodega son cifras reales: manda sobre los vacíos.
+    return {
+      ...base,
+      toneladas: desdeBodega?.toneladas ?? base.toneladas,
+      costoCopKg: desdeBodega?.costoCopKg ?? base.costoCopKg,
+    };
+  });
 
   const errores = estado.errores ?? {};
   const actualizar = (parcial: Partial<Campos>) =>

@@ -5,11 +5,23 @@ import { crearClienteServidor } from "@/lib/supabase/server";
 import { seriesDisponibles } from "@/lib/data/cache";
 import { FormularioAnalisis } from "./FormularioAnalisis";
 
+/**
+ * Estas páginas lanzan acciones que salen a la red —datos de mercado, TRM,
+ * la hoja de cálculo— y el arranque en frío puede superar el límite por
+ * defecto de 10 segundos.
+ */
+export const maxDuration = 30;
+
 export default async function PaginaNuevoAnalisis({
   searchParams,
 }: PageProps<"/analisis/nuevo">) {
   const params = await searchParams;
   const loteId = typeof params.lote === "string" ? params.lote : null;
+  // Prefijado desde /bodega con el inventario real de la hoja.
+  const desdeBodega = {
+    toneladas: typeof params.toneladas === "string" ? params.toneladas : null,
+    costoCopKg: typeof params.costo === "string" ? params.costo : null,
+  };
 
   const supabase = await crearClienteServidor();
 
@@ -40,7 +52,12 @@ export default async function PaginaNuevoAnalisis({
         </p>
       </header>
 
-      <FormularioAnalisis lotes={lotes ?? []} loteInicial={loteId} series={series} />
+      <FormularioAnalisis
+        lotes={lotes ?? []}
+        loteInicial={loteId}
+        series={series}
+        desdeBodega={desdeBodega}
+      />
       <Disclaimer />
     </div>
   );

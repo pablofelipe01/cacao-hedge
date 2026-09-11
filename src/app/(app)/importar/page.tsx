@@ -6,6 +6,13 @@ import { seriesDisponibles } from "@/lib/data/cache";
 import { fechaLegible } from "@/lib/formato";
 import { FormularioImportacion } from "./FormularioImportacion";
 
+/**
+ * Estas páginas lanzan acciones que salen a la red —datos de mercado, TRM,
+ * la hoja de cálculo— y el arranque en frío puede superar el límite por
+ * defecto de 10 segundos.
+ */
+export const maxDuration = 30;
+
 export default async function PaginaImportar() {
   const supabase = await crearClienteServidor();
 
