@@ -26,7 +26,13 @@ export default async function LayoutApp({ children }: LayoutProps<"/">) {
             <Link href="/configuracion" className="text-texto-suave hover:text-texto">
               Supuestos
             </Link>
-            <span className="hidden text-texto-suave sm:inline">{usuario?.email}</span>
+            <Link
+              href="/clave"
+              className="hidden text-texto-suave hover:text-texto sm:inline"
+              title="Cambiar contraseña"
+            >
+              {usuario?.email}
+            </Link>
             <form action={cerrarSesion}>
               <button
                 type="submit"

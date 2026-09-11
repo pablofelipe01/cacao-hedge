@@ -267,6 +267,7 @@ pie del documento.
 | `/analisis/nuevo` | Formulario del análisis, rellenable desde un lote |
 | `/analisis/[id]` | Resultados: métricas, tabla comparativa, payoff, heatmap, Monte Carlo y márgenes |
 | `/bodega` | Inventario real sincronizado desde la hoja operativa |
+| `/clave` | Establecer o cambiar la contraseña |
 | `/inventarios/[id]` | Ficha del lote e historial de sus análisis |
 | `/configuracion` | Supuestos de cálculo del usuario |
 | `/importar` | Importación de históricos en CSV a la caché (arrastrar y soltar) |
@@ -466,6 +467,21 @@ hay service role key.
 El proxy protege las páginas redirigiendo a `/login`, pero para `/api/*`
 devuelve `401` en JSON: un `fetch` seguiría la redirección, recibiría el HTML
 del login y fallaría al parsearlo como JSON con un error que no dice nada.
+
+### Los enlaces de recuperación llegan por el fragmento de la URL
+
+Supabase devuelve los tokens de un enlace de recuperación o de un magic link
+en el **fragmento** (`#access_token=…`), no como parámetro de consulta. El
+fragmento nunca se envía al servidor, así que el route handler de
+`/auth/callback` —que espera un `?code=`— no puede verlo: sin un manejador de
+cliente, ningún enlace de recuperación funcionaría.
+
+`SesionDesdeFragmento` vive en el layout raíz por eso, y no en la pantalla de
+acceso: el enlace aterriza en la Site URL configurada en Supabase, que redirige
+a un sitio u otro según haya sesión. El fragmento sobrevive al salto, pero el
+destino varía; montado en la raíz da igual dónde caiga. Canjea los tokens,
+limpia el fragmento para que no queden en el historial y lleva a `/clave`
+cuando el enlace es de recuperación.
 
 ### Separación de clientes de Supabase
 

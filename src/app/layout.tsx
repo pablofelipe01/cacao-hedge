@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+
+import { SesionDesdeFragmento } from "@/components/SesionDesdeFragmento";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -24,7 +26,12 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       lang="es-CO"
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col font-sans">{children}</body>
+      <body className="min-h-full flex flex-col font-sans">
+        {/* Canjea los tokens que los enlaces de recuperación dejan en el
+            fragmento de la URL. Sin fragmento no renderiza nada. */}
+        <SesionDesdeFragmento />
+        {children}
+      </body>
     </html>
   );
 }
