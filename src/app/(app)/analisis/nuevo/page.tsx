@@ -62,7 +62,11 @@ export default async function PaginaNuevoAnalisis({
         <p className="text-sm leading-relaxed text-texto-suave">
           La cobertura no busca ganar dinero en la bolsa: busca que el precio deje de
           importar. Aquí se calcula cuánto de ese riesgo se puede quitar y qué cuesta
-          quitarlo.
+          quitarlo.{" "}
+          <Link href="/guia" className="text-cacao hover:underline">
+            Cómo leer los resultados
+          </Link>
+          .
         </p>
       </header>
 

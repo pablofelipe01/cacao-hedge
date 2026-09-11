@@ -26,6 +26,9 @@ export default async function LayoutApp({ children }: LayoutProps<"/">) {
             <Link href="/configuracion" className="text-texto-suave hover:text-texto">
               Supuestos
             </Link>
+            <Link href="/guia" className="text-texto-suave hover:text-texto">
+              Guía
+            </Link>
             <Link
               href="/clave"
               className="hidden text-texto-suave hover:text-texto sm:inline"
