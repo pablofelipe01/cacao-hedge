@@ -63,6 +63,21 @@ export interface Lote {
    * `venta_sin_comprar`, la que PAGA al comprarle al productor.
    */
   diferencialUsdTm: number;
+  /**
+   * Diferencial pactado como fracción del futuro, no como cantidad fija.
+   * −0,235 = 23,5 % por debajo de Nueva York.
+   *
+   * Cuando está presente MANDA sobre `diferencialUsdTm`, que pasa a ser
+   * un valor derivado del futuro de cada escenario.
+   *
+   * La distinción no es cosmética. Con un diferencial fijo el precio del
+   * físico se mueve dólar por dólar con la bolsa y hay que cubrir el
+   * 100 % de las toneladas. Con uno porcentual el precio se mueve solo
+   * (1 + fracción) por cada dólar —quien compra un 23,5 % por debajo solo
+   * está expuesto al 76,5 % del movimiento—, y cubrir el 100 % de las
+   * toneladas deja una posición especulativa encima de la cobertura.
+   */
+  diferencialPorcentual?: number | null;
   tipoContrato: TipoContratoVenta;
   /**
    * Precio de venta pactado, USD/TM.

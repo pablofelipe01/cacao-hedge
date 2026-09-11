@@ -2,6 +2,7 @@
  * Métricas de riesgo: exposición, VaR paramétrico y llamadas de margen.
  */
 
+import { diferencialEnEscenarioUsdTm, toneladasExpuestasAlPrecio } from "./fx";
 import { CC_TONELADAS_POR_CONTRATO } from "./constantes";
 import { factorZ } from "./numerico";
 import { valorarOpcion } from "./opciones";
@@ -107,10 +108,10 @@ export function calcularExposicion(
    * tiene exposición al futuro, solo cambiaria.
    */
   const fisicoTm = !esInventario
-    ? -lote.toneladas
+    ? -toneladasExpuestasAlPrecio(lote)
     : lote.tipoContrato === "precio_fijo_usd"
       ? 0
-      : lote.toneladas;
+      : toneladasExpuestasAlPrecio(lote);
 
   const toneladasExpuestas = fisicoTm + delta;
 
@@ -119,7 +120,7 @@ export function calcularExposicion(
   const precioVenta =
     lote.precioVentaUsdTm != null && (!esInventario || lote.tipoContrato === "precio_fijo_usd")
       ? lote.precioVentaUsdTm
-      : mercado.futuroUsdTm + lote.diferencialUsdTm;
+      : mercado.futuroUsdTm + diferencialEnEscenarioUsdTm(lote, mercado.futuroUsdTm);
 
   return {
     nominalUsd,

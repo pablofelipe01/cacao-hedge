@@ -36,22 +36,33 @@ function formatearAbsoluto(x: number): string {
 /**
  * Construye la matriz completa: 7 × 3 × 3 = 63 escenarios.
  *
- * @param diferencialBase Base esperada del lote, USD/TM. Los escenarios
- *                        la desplazan en ±100 alrededor de ese valor.
+ * @param diferencialBase Base esperada del lote, USD/TM, o una función
+ *                        del futuro del escenario cuando el diferencial
+ *                        se pactó como porcentaje. Los escenarios la
+ *                        desplazan en ±100 alrededor de ese valor.
+ *
+ * El desplazamiento sigue siendo absoluto incluso en modo porcentual, y
+ * es una buena aproximación: para un descuento que oscila entre el 22 % y
+ * el 25 %, ±100 USD/TM sobre un futuro de 6.000 son ±1,7 puntos
+ * porcentuales, que cubre ese rango.
  */
 export function construirMatrizEscenarios(
   mercado: Pick<Mercado, "futuroUsdTm" | "trm">,
-  diferencialBase: number,
+  diferencialBase: number | ((futuroUsdTm: number) => number),
 ): Escenario[] {
+  const baseDe = (futuro: number) =>
+    typeof diferencialBase === "function" ? diferencialBase(futuro) : diferencialBase;
+
   const escenarios: Escenario[] = [];
 
   for (const dPrecio of EJE_PRECIO) {
     for (const dTrm of EJE_TRM) {
       for (const dBase of EJE_BASE) {
+        const futuro = mercado.futuroUsdTm * (1 + dPrecio);
         escenarios.push({
-          futuroUsdTm: mercado.futuroUsdTm * (1 + dPrecio),
+          futuroUsdTm: futuro,
           trm: mercado.trm * (1 + dTrm),
-          diferencialUsdTm: diferencialBase + dBase,
+          diferencialUsdTm: baseDe(futuro) + dBase,
           etiqueta: `futuro ${formatearPorcentaje(dPrecio)} · TRM ${formatearPorcentaje(dTrm)} · base ${formatearAbsoluto(dBase)}`,
           ejes: { precio: dPrecio, trm: dTrm, base: dBase },
         });
@@ -65,12 +76,15 @@ export function construirMatrizEscenarios(
 /** El escenario en que nada se mueve: referencia de comparación. */
 export function escenarioBase(
   mercado: Pick<Mercado, "futuroUsdTm" | "trm">,
-  diferencialBase: number,
+  diferencialBase: number | ((futuroUsdTm: number) => number),
 ): Escenario {
   return {
     futuroUsdTm: mercado.futuroUsdTm,
     trm: mercado.trm,
-    diferencialUsdTm: diferencialBase,
+    diferencialUsdTm:
+      typeof diferencialBase === "function"
+        ? diferencialBase(mercado.futuroUsdTm)
+        : diferencialBase,
     etiqueta: "sin cambios",
     ejes: { precio: 0, trm: 0, base: 0 },
   };

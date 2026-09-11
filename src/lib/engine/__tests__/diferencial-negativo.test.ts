@@ -48,7 +48,7 @@ describe("diferencial negativo", () => {
 
     expect(precioFisicoUsdTm(lote, 5961, -300)).toBe(5661);
     // Con descuento, el futuro puede subir más antes de comerse el margen.
-    expect(precioMaximoCompraUsdTm(6500, -300)).toBe(6800);
-    expect(precioMaximoCompraUsdTm(6500, 250)).toBe(6250);
+    expect(precioMaximoCompraUsdTm(6500, { diferencialUsdTm: -300 })).toBe(6800);
+    expect(precioMaximoCompraUsdTm(6500, { diferencialUsdTm: 250 })).toBe(6250);
   });
 });

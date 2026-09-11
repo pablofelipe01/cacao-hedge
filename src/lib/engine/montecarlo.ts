@@ -22,6 +22,7 @@
  * hecho, y este motor no opina sobre la dirección del precio.
  */
 
+import { diferencialEnEscenarioUsdTm } from "./fx";
 import { crearPrng, media, parNormalEstandar, percentil } from "./numerico";
 import { evaluarEnEscenario } from "./estrategias";
 import { diasAAnios } from "./volatilidad";
@@ -146,11 +147,15 @@ export function simularMonteCarlo(
   /** Evalúa una trayectoria a partir de sus tres choques normales. */
   const evaluar = (z1: number, z2: number, z3: number): number => {
     const zTrm = rho * z1 + complemento * z2;
+    const futuro = mercado.futuroUsdTm * Math.exp(derivaPrecio + sigmaPrecio * z1);
 
     const escenario: Escenario = {
-      futuroUsdTm: mercado.futuroUsdTm * Math.exp(derivaPrecio + sigmaPrecio * z1),
+      futuroUsdTm: futuro,
       trm: mercado.trm * Math.exp(derivaTrm + sigmaTrm * zTrm),
-      diferencialUsdTm: lote.diferencialUsdTm + desviacionBaseUsdTm * z3,
+      // El diferencial se recalcula contra el futuro de ESTA trayectoria:
+      // si se pactó como porcentaje, se mueve con la bolsa.
+      diferencialUsdTm:
+        diferencialEnEscenarioUsdTm(lote, futuro) + desviacionBaseUsdTm * z3,
       etiqueta: "mc",
       ejes: { precio: 0, trm: 0, base: 0 },
     };

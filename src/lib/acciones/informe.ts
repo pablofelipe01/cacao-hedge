@@ -49,6 +49,7 @@ export async function generarInformeNarrativo(
     precioVentaUsdTm?: string;
     fechaEmbarque: string;
     situacion?: "tengo_cacao" | "ya_vendi";
+    modoDiferencial?: "absoluto" | "porcentual";
   };
   const mercado = analisis.mercado as unknown as Mercado & {
     procedencia?: { cacao: { fuente: string; simbolo: string; barras: number } };
@@ -78,7 +79,10 @@ export async function generarInformeNarrativo(
     toneladas: entradas.toneladas,
     costoCopKg: tipoOperacion === "venta_sin_comprar" ? 0 : entradas.costoCopKg,
     diasAEmbarque: entradas.diasAEmbarque,
-    diferencialUsdTm: entradas.diferencialUsdTm,
+    diferencialUsdTm:
+      entradas.modoDiferencial === "porcentual" ? 0 : entradas.diferencialUsdTm,
+    diferencialPorcentual:
+      entradas.modoDiferencial === "porcentual" ? entradas.diferencialUsdTm / 100 : null,
     tipoOperacion,
     tipoContrato: entradas.tipoContrato,
     precioVentaUsdTm: Number.isFinite(precio) ? precio : null,

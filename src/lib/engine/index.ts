@@ -14,7 +14,14 @@
 import { construirEstrategias, operacionDe, resumirEstrategia } from "./estrategias";
 import { construirMatrizEscenarios } from "./escenarios";
 import { dimensionarCobertura, type DimensionamientoCobertura } from "./contratos";
-import { precioEquilibrioUsdTm, precioMaximoCompraUsdTm } from "./fx";
+import {
+  diferencialEnEscenarioUsdTm,
+  esDiferencialPorcentual,
+  factorExposicion,
+  precioEquilibrioUsdTm,
+  precioMaximoCompraUsdTm,
+  toneladasExpuestasAlPrecio,
+} from "./fx";
 import {
   analizarMargen,
   calcularExposicion,
@@ -120,7 +127,7 @@ export function detectarAdvertencias(lote: Lote, mercado: Mercado): string[] {
     const precioVenta =
       lote.tipoContrato === "precio_fijo_usd" && lote.precioVentaUsdTm != null
         ? lote.precioVentaUsdTm
-        : mercado.futuroUsdTm + lote.diferencialUsdTm;
+        : mercado.futuroUsdTm + diferencialEnEscenarioUsdTm(lote, mercado.futuroUsdTm);
 
     if (precioVenta <= precioEquilibrio) {
       advertencias.push(
@@ -128,7 +135,7 @@ export function detectarAdvertencias(lote: Lote, mercado: Mercado): string[] {
       );
     }
   } else if (lote.precioVentaUsdTm != null) {
-    const maximo = precioMaximoCompraUsdTm(lote.precioVentaUsdTm, lote.diferencialUsdTm);
+    const maximo = precioMaximoCompraUsdTm(lote.precioVentaUsdTm, lote);
     if (mercado.futuroUsdTm >= maximo) {
       advertencias.push(
         `El futuro ya está en ${mercado.futuroUsdTm.toFixed(0)} USD/TM y su margen se agota a partir de ${maximo.toFixed(0)}. La venta se cerró por debajo de lo que hoy cuesta abastecerla: cubrirse fija esa pérdida, no la evita.`,
@@ -136,7 +143,7 @@ export function detectarAdvertencias(lote: Lote, mercado: Mercado): string[] {
     }
   }
 
-  if (Math.abs(lote.diferencialUsdTm) > 1500) {
+  if (!esDiferencialPorcentual(lote) && Math.abs(lote.diferencialUsdTm) > 1500) {
     advertencias.push(
       "El diferencial declarado es inusualmente grande. Verifique que esté expresado en USD por tonelada métrica y no por quintal o por libra.",
     );
@@ -218,7 +225,9 @@ export function analizarCobertura(
 ): ResultadoAnalisis {
   const supuestos: Supuestos = { ...SUPUESTOS_POR_DEFECTO, ...supuestosParciales };
 
-  const escenarios = construirMatrizEscenarios(mercado, lote.diferencialUsdTm);
+  const escenarios = construirMatrizEscenarios(mercado, (futuro) =>
+    diferencialEnEscenarioUsdTm(lote, futuro),
+  );
   const estrategias = construirEstrategias(lote, mercado, supuestos);
   const opcionesMc = opcionesDesdeSupuestos(supuestos);
 
@@ -242,8 +251,12 @@ export function analizarCobertura(
     precioEquilibrioUsdTm:
       operacionDe(lote) === "inventario_sin_vender"
         ? precioEquilibrioUsdTm(lote.costoCopKg, mercado.trm)
-        : precioMaximoCompraUsdTm(lote.precioVentaUsdTm ?? 0, lote.diferencialUsdTm),
-    dimensionamiento: dimensionarCobertura(lote.toneladas, 1, sentidoDe(operacionDe(lote))),
+        : precioMaximoCompraUsdTm(lote.precioVentaUsdTm ?? 0, lote),
+    dimensionamiento: dimensionarCobertura(
+      toneladasExpuestasAlPrecio(lote),
+      1,
+      sentidoDe(operacionDe(lote)),
+    ),
     evaluaciones,
     recomendacion: recomendar(evaluaciones),
     advertencias: detectarAdvertencias(lote, mercado),

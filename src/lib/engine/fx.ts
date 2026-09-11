@@ -71,6 +71,50 @@ export function precioFisicoUsdTm(
  * Es el dato que da sentido a la operación: sin él no hay ingreso cerrado
  * que proteger y el caso no se sostiene.
  */
+/** Tipo mínimo para razonar sobre el diferencial de un lote. */
+type LoteDiferencial = Pick<Lote, "diferencialUsdTm" | "diferencialPorcentual">;
+
+/** ¿El diferencial se pactó como porcentaje del futuro? */
+export function esDiferencialPorcentual(lote: LoteDiferencial): boolean {
+  return lote.diferencialPorcentual != null;
+}
+
+/**
+ * El diferencial en USD/TM que corresponde a un nivel de futuro dado.
+ *
+ * Con diferencial fijo devuelve siempre el mismo número. Con uno
+ * porcentual lo recalcula contra ese futuro, que es exactamente lo que
+ * pasa en la realidad: el descuento se fija el día de la compra contra
+ * el cierre de ese día.
+ */
+export function diferencialEnEscenarioUsdTm(
+  lote: LoteDiferencial,
+  futuroUsdTm: number,
+): number {
+  return lote.diferencialPorcentual != null
+    ? futuroUsdTm * lote.diferencialPorcentual
+    : lote.diferencialUsdTm;
+}
+
+/**
+ * Cuánto se mueve el precio del físico por cada dólar que se mueve el
+ * futuro. Es el ratio de cobertura correcto.
+ *
+ * Con diferencial fijo vale 1: hay que cubrir cada tonelada. Con uno
+ * porcentual vale (1 + fracción): quien compra un 23,5 % por debajo solo
+ * necesita cubrir el 76,5 % de sus toneladas, y cubrir más es especular.
+ */
+export function factorExposicion(lote: LoteDiferencial): number {
+  return lote.diferencialPorcentual != null ? 1 + lote.diferencialPorcentual : 1;
+}
+
+/** Toneladas realmente expuestas al precio de Nueva York. */
+export function toneladasExpuestasAlPrecio(
+  lote: Pick<Lote, "toneladas" | "diferencialUsdTm" | "diferencialPorcentual">,
+): number {
+  return lote.toneladas * factorExposicion(lote);
+}
+
 export function precioVentaPactadoUsdTm(
   lote: Pick<Lote, "precioVentaUsdTm">,
 ): number {
@@ -91,9 +135,15 @@ export function precioVentaPactadoUsdTm(
  */
 export function precioMaximoCompraUsdTm(
   precioVentaUsdTm: number,
-  diferencialUsdTm: number,
+  lote: LoteDiferencial,
 ): number {
-  return precioVentaUsdTm - diferencialUsdTm;
+  // Con diferencial porcentual el techo se despeja, no se resta: el
+  // precio de compra es F × (1 + p), así que F máximo = venta / (1 + p).
+  // Restar el diferencial de hoy daría un techo demasiado bajo y haría
+  // sonar la alarma de margen mucho antes de tiempo.
+  return lote.diferencialPorcentual != null
+    ? precioVentaUsdTm / (1 + lote.diferencialPorcentual)
+    : precioVentaUsdTm - lote.diferencialUsdTm;
 }
 
 /**

@@ -66,6 +66,9 @@ const TEXTOS: Record<Situacion, {
   diferencial: string;
   ayudaDiferencial: string;
   placeholderDiferencial: string;
+  diferencialPct: string;
+  ayudaDiferencialPct: string;
+  placeholderDiferencialPct: string;
   precio: string;
   ayudaPrecio: string;
 }> = {
@@ -82,6 +85,10 @@ const TEXTOS: Record<Situacion, {
     ayudaDiferencial:
       "La prima o descuento de SU cacao frente al futuro: positivo si le pagan por encima de la bolsa, negativo (−250) si por debajo. La cobertura NO fija este número.",
     placeholderDiferencial: "250",
+    diferencialPct: "Diferencial sobre Nueva York (% del futuro)",
+    ayudaDiferencialPct:
+      "Si le pagan un porcentaje del cierre de Nueva York. Positivo si por encima, negativo (−10) si por debajo.",
+    placeholderDiferencialPct: "5",
     precio: "Precio pactado (USD/TM)",
     ayudaPrecio:
       "Con el precio cerrado el riesgo de mercado ya no existe: lo que queda vivo es el cambiario.",
@@ -102,6 +109,10 @@ const TEXTOS: Record<Situacion, {
     ayudaDiferencial:
       "Futuro + diferencial = lo que le cuesta el físico. Comprar en Colombia por DEBAJO de la bolsa es lo normal: escríbalo con signo menos (−300). Positivo solo si paga prima sobre el futuro. La cobertura NO fija este número: es su riesgo de base.",
     placeholderDiferencial: "-300",
+    diferencialPct: "Cuánto por debajo de Nueva York le compra al productor (%)",
+    ayudaDiferencialPct:
+      "Si el precio se pacta como porcentaje del cierre del día —lo habitual en Colombia—, escríbalo con signo menos: −23,5 significa comprar un 23,5 % por debajo de la bolsa. Cambia cuánto hay que cubrir: con un descuento porcentual usted solo está expuesto a (100 − 23,5) % del movimiento del precio.",
+    placeholderDiferencialPct: "-23,5",
     precio: "Precio al que cerró la venta (USD/TM)",
     ayudaPrecio:
       "El ingreso ya está fijo en este número. Todo el análisis mide qué tanto del margen se le come el costo de abastecerse.",
@@ -114,6 +125,7 @@ interface Campos {
   costoCopKg: string;
   fechaEmbarque: string;
   diferencialUsdTm: string;
+  modoDiferencial: "absoluto" | "porcentual";
   tipoContrato: string;
   precioVentaUsdTm: string;
 }
@@ -124,6 +136,7 @@ const VACIO: Campos = {
   costoCopKg: "",
   fechaEmbarque: "",
   diferencialUsdTm: "",
+  modoDiferencial: "absoluto",
   tipoContrato: "sin_contrato",
   precioVentaUsdTm: "",
 };
@@ -136,6 +149,7 @@ function desdeLote(lote: Lote | undefined): Campos {
     costoCopKg: String(lote.costo_cop_kg),
     fechaEmbarque: lote.fecha_embarque,
     diferencialUsdTm: String(lote.diferencial_usd_tm),
+    modoDiferencial: "absoluto",
     tipoContrato: lote.tipo_contrato,
     precioVentaUsdTm: lote.precio_venta_usd_tm != null ? String(lote.precio_venta_usd_tm) : "",
   };
@@ -171,6 +185,7 @@ export function FormularioAnalisis({ lotes, loteInicial, series, bodega, desdeUr
 
   // Quien ya vendió tiene el precio cerrado por definición: no es una
   // elección suya, así que el selector no aparece y el valor viaja fijo.
+  const esPorcentual = campos.modoDiferencial === "porcentual";
   const tipoContrato = esInventario ? campos.tipoContrato : "precio_fijo_usd";
   const pidePrecio = tipoContrato === "precio_fijo_usd";
 
@@ -370,20 +385,45 @@ export function FormularioAnalisis({ lotes, loteInicial, series, bodega, desdeUr
 
           <Campo
             id="diferencialUsdTm"
-            etiqueta={t.diferencial}
-            ayuda={t.ayudaDiferencial}
+            etiqueta={esPorcentual ? t.diferencialPct : t.diferencial}
+            ayuda={esPorcentual ? t.ayudaDiferencialPct : t.ayudaDiferencial}
             error={errores.diferencialUsdTm}
           >
-            <input
-              id="diferencialUsdTm"
-              name="diferencialUsdTm"
-              inputMode="text"
-              required
-              placeholder={t.placeholderDiferencial}
-              value={campos.diferencialUsdTm}
-              onChange={(e) => actualizar({ diferencialUsdTm: e.target.value })}
-              className={CLASES_INPUT}
-            />
+            <div className="flex gap-2">
+              <input
+                id="diferencialUsdTm"
+                name="diferencialUsdTm"
+                inputMode="text"
+                required
+                placeholder={
+                  esPorcentual ? t.placeholderDiferencialPct : t.placeholderDiferencial
+                }
+                value={campos.diferencialUsdTm}
+                onChange={(e) => actualizar({ diferencialUsdTm: e.target.value })}
+                className={`${CLASES_INPUT} flex-1`}
+              />
+              {/* La unidad va pegada al número, no en un paso aparte: es
+                  parte de lo que el usuario escribe, y separarlas invita a
+                  teclear 23,5 pensando en porcentaje y que se lea como
+                  dólares. */}
+              <select
+                name="modoDiferencial"
+                aria-label="Unidad del diferencial"
+                value={campos.modoDiferencial}
+                onChange={(e) =>
+                  actualizar({
+                    modoDiferencial: e.target.value as Campos["modoDiferencial"],
+                    // El número anterior queda sin sentido en la otra
+                    // unidad: −300 USD/TM leído como −300 % es absurdo.
+                    diferencialUsdTm: "",
+                  })
+                }
+                className={`${CLASES_INPUT} w-28 flex-none`}
+              >
+                <option value="absoluto">USD/TM</option>
+                <option value="porcentual">% de NY</option>
+              </select>
+            </div>
           </Campo>
         </div>
 

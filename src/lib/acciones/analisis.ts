@@ -109,12 +109,16 @@ export async function ejecutarAnalisis(
   const necesitaPrecio =
     tipoOperacion === "venta_sin_comprar" || datos.tipoContrato === "precio_fijo_usd";
 
+  // El porcentaje llega como 23,5 y el motor lo quiere como fracción.
+  const esPorcentual = datos.modoDiferencial === "porcentual";
+
   const lote: Lote = {
     toneladas: datos.toneladas,
     // El cacao del caso A todavía no se compró: no hay costo hundido.
     costoCopKg: tipoOperacion === "venta_sin_comprar" ? 0 : datos.costoCopKg,
     diasAEmbarque: dias,
-    diferencialUsdTm: datos.diferencialUsdTm,
+    diferencialUsdTm: esPorcentual ? 0 : datos.diferencialUsdTm,
+    diferencialPorcentual: esPorcentual ? datos.diferencialUsdTm / 100 : null,
     tipoOperacion,
     tipoContrato: datos.tipoContrato,
     precioVentaUsdTm: necesitaPrecio && Number.isFinite(precio) ? precio : null,

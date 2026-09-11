@@ -87,6 +87,18 @@ export const tipoContratoEsquema = z.enum([
  */
 export const situacionEsquema = z.enum(["tengo_cacao", "ya_vendi"]);
 
+/**
+ * Cómo se pactó el diferencial.
+ *
+ * - `absoluto`: una cantidad fija en USD/TM que no cambia hasta la
+ *   entrega. El precio del físico se mueve dólar por dólar con la bolsa.
+ * - `porcentual`: un porcentaje del cierre de Nueva York del día de la
+ *   compra, que es como se pacta el cacao en Colombia. El precio del
+ *   físico se mueve solo (1 + p) por cada dólar de la bolsa, así que la
+ *   exposición —y la cobertura que hace falta— es menor.
+ */
+export const modoDiferencialEsquema = z.enum(["absoluto", "porcentual"]);
+
 const fechaIso = z
   .string()
   .regex(/^\d{4}-\d{2}-\d{2}$/, "La fecha debe tener formato aaaa-mm-dd.");
@@ -147,6 +159,7 @@ export const esquemaAnalisis = z
       .pipe(z.number({ error: "El costo por kilo debe ser un número." }).min(0, "El costo por kilo no puede ser negativo.")),
     fechaEmbarque: fechaIso,
     diferencialUsdTm: numeroCualquiera("El diferencial"),
+    modoDiferencial: modoDiferencialEsquema.default("absoluto"),
     tipoContrato: tipoContratoEsquema,
     precioVentaUsdTm: z.string().trim().optional(),
     /** "simbolo|fuente" de la serie de cacao. Vacío = fuente en vivo. */
@@ -171,6 +184,19 @@ export const esquemaAnalisis = z
         datos.situacion === "ya_vendi"
           ? "Indique a qué precio cerró la venta, en USD/TM."
           : "Un contrato a precio fijo necesita el precio pactado en USD/TM.",
+    });
+  })
+  .superRefine((datos, ctx) => {
+    // Un porcentaje fuera de ±100 no es un diferencial: es un número mal
+    // tecleado, y dejarlo pasar produciría un precio físico negativo.
+    if (datos.modoDiferencial !== "porcentual") return;
+    if (Math.abs(datos.diferencialUsdTm) < 100) return;
+
+    ctx.addIssue({
+      code: "custom",
+      path: ["diferencialUsdTm"],
+      message:
+        "Como porcentaje debe estar entre −100 y 100. Si quería escribir dólares por tonelada, cambie la unidad al lado del campo.",
     });
   });
 

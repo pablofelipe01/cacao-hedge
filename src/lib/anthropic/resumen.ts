@@ -53,9 +53,12 @@ export interface ResumenCuantitativo {
     costoTotalCop?: number;
     /** Solo con venta cerrada: el precio al que se pactó la entrega. */
     precioVentaPactadoUsdTm?: number;
+    /** Presente solo cuando el diferencial se pactó como porcentaje. */
+    diferencialPorcentaje?: number;
+    diferencialConcepto?: string;
     diasAEmbarque: number;
     fechaEmbarque: string;
-    diferencialUsdTm: number;
+    diferencialUsdTm?: number;
     tipoContrato: string;
   };
   mercado: {
@@ -172,7 +175,13 @@ export function construirResumen(entrada: EntradaResumen): ResumenCuantitativo {
         : { precioVentaPactadoUsdTm: r(precioVentaPactadoUsdTm(lote)) }),
       diasAEmbarque: lote.diasAEmbarque,
       fechaEmbarque: entrada.fechaEmbarque,
-      diferencialUsdTm: r(lote.diferencialUsdTm),
+      ...(lote.diferencialPorcentual != null
+        ? {
+            diferencialPorcentaje: r(lote.diferencialPorcentual * 100, 2),
+            diferencialConcepto:
+              "el diferencial se pactó como porcentaje del cierre de Nueva York, no como una cantidad fija: el precio del físico se mueve solo (100 + ese porcentaje) % de lo que se mueve la bolsa, y por eso la cobertura cubre menos toneladas de las que tiene el lote",
+          }
+        : { diferencialUsdTm: r(lote.diferencialUsdTm) }),
       tipoContrato: lote.tipoContrato,
     },
     mercado: {

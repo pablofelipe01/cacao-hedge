@@ -201,7 +201,7 @@ describe("precioMaximoCompraUsdTm", () => {
   it("es el espejo del punto de equilibrio del inventario", () => {
     // Vendiendo a 6.500 con una prima de 250 al productor, el futuro no
     // puede pasar de 6.250 sin comerse el margen.
-    expect(precioMaximoCompraUsdTm(6500, 250)).toBe(6250);
+    expect(precioMaximoCompraUsdTm(6500, { diferencialUsdTm: 250 })).toBe(6250);
   });
 });
 

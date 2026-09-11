@@ -20,7 +20,7 @@
 
 import { CC_TONELADAS_POR_CONTRATO } from "./constantes";
 import { dimensionarCobertura } from "./contratos";
-import { costoAdquisicionCop, precioFisicoUsdTm, precioVentaPactadoUsdTm } from "./fx";
+import { costoAdquisicionCop, diferencialEnEscenarioUsdTm, precioFisicoUsdTm, precioVentaPactadoUsdTm, toneladasExpuestasAlPrecio } from "./fx";
 import {
   payoffOpcion,
   redondearStrike,
@@ -325,7 +325,9 @@ export function construirEstrategias(
   // --- Futuros a distintos ratios ------------------------------------
   const verboFuturos = esInventario ? "Venta" : "Compra";
   for (const ratio of RATIOS_FUTUROS) {
-    const alt = dimensionarCobertura(lote.toneladas, ratio).recomendada;
+    // Sobre las toneladas EXPUESTAS, no sobre las físicas: con diferencial
+    // porcentual no son la misma cosa, y cubrir las físicas sobre-cubre.
+    const alt = dimensionarCobertura(toneladasExpuestasAlPrecio(lote), ratio).recomendada;
     estrategias.push({
       id: `futuros_${Math.round(ratio * 100)}`,
       tipo: "futuros",
@@ -340,7 +342,7 @@ export function construirEstrategias(
     });
   }
 
-  const dimTotal = dimensionarCobertura(lote.toneladas, 1).recomendada;
+  const dimTotal = dimensionarCobertura(toneladasExpuestasAlPrecio(lote), 1).recomendada;
   const contratosTotal = dimTotal.contratos;
   const toneladasTotal = dimTotal.toneladasCubiertas;
 
@@ -494,7 +496,7 @@ export function curvaPayoff(
     const escenario: Escenario = {
       futuroUsdTm: futuro,
       trm: mercado.trm,
-      diferencialUsdTm: lote.diferencialUsdTm,
+      diferencialUsdTm: diferencialEnEscenarioUsdTm(lote, futuro),
       etiqueta: `payoff-${i}`,
       ejes: { precio: futuro / mercado.futuroUsdTm - 1, trm: 0, base: 0 },
     };
