@@ -22,7 +22,9 @@ export function cop(valor: number, decimales = 1): string {
   const formatear = (v: number, d: number) =>
     v.toLocaleString(LOCALE, { maximumFractionDigits: d });
 
-  if (abs >= 1e9) return `${formatear(valor / 1e9, Math.max(decimales, 1))} mil M`;
+  // Dos decimales como mínimo en esta escala: con uno, 1.986,5 millones
+  // se imprimía «2 mil M» y perdía la cifra significativa.
+  if (abs >= 1e9) return `${formatear(valor / 1e9, Math.max(decimales, 2))} mil M`;
   if (abs >= 1e6) return `${formatear(valor / 1e6, decimales)} M`;
   if (abs >= 1e3) return `${formatear(valor / 1e3, 0)} k`;
 

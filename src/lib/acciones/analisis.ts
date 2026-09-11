@@ -29,8 +29,18 @@ function aJson<T>(valor: T): Json {
   return JSON.parse(JSON.stringify(valor)) as Json;
 }
 
+/**
+ * Supuestos del usuario más la volatilidad de respaldo, que no forma
+ * parte de `Supuestos` porque no la consume el motor sino la capa de
+ * datos: solo se usa cuando la serie histórica no alcanza.
+ */
+interface SupuestosCompletos {
+  supuestos: Supuestos;
+  volRespaldo: number;
+}
+
 /** Lee los supuestos del usuario, cayendo a los valores por defecto. */
-async function supuestosDelUsuario(userId: string): Promise<Supuestos> {
+async function supuestosDelUsuario(userId: string): Promise<SupuestosCompletos> {
   const supabase = await crearClienteServidor();
   const { data } = await supabase
     .from("configuracion")
@@ -38,17 +48,20 @@ async function supuestosDelUsuario(userId: string): Promise<Supuestos> {
     .eq("user_id", userId)
     .maybeSingle();
 
-  if (!data) return SUPUESTOS_POR_DEFECTO;
+  if (!data) return { supuestos: SUPUESTOS_POR_DEFECTO, volRespaldo: 0.35 };
 
   return {
-    ...SUPUESTOS_POR_DEFECTO,
-    margenInicialUsd: Number(data.margen_inicial_usd),
-    margenMantenimientoUsd: Number(data.margen_mantenimiento_usd),
-    comisionUsdContrato: Number(data.comision_usd_contrato),
-    tasaLibreRiesgo: Number(data.tasa_libre_riesgo),
-    diasHabilesAnio: data.dias_habiles_anio,
-    nivelConfianzaVar: Number(data.nivel_confianza_var),
-    trayectoriasMc: data.trayectorias_mc,
+    supuestos: {
+      ...SUPUESTOS_POR_DEFECTO,
+      margenInicialUsd: Number(data.margen_inicial_usd),
+      margenMantenimientoUsd: Number(data.margen_mantenimiento_usd),
+      comisionUsdContrato: Number(data.comision_usd_contrato),
+      tasaLibreRiesgo: Number(data.tasa_libre_riesgo),
+      diasHabilesAnio: data.dias_habiles_anio,
+      nivelConfianzaVar: Number(data.nivel_confianza_var),
+      trayectoriasMc: data.trayectorias_mc,
+    },
+    volRespaldo: Number(data.vol_fallback),
   };
 }
 
@@ -97,7 +110,7 @@ export async function ejecutarAnalisis(
   }
 
   const supabase = await crearClienteServidor();
-  const supuestos = await supuestosDelUsuario(usuario.id);
+  const { supuestos, volRespaldo } = await supuestosDelUsuario(usuario.id);
 
   // El selector envía "simbolo|fuente"; vacío significa la fuente en vivo.
   let origenCacao: OrigenCacao | undefined;
@@ -115,6 +128,7 @@ export async function ejecutarAnalisis(
       proveedor: elegirProveedor(barchartApiKey),
       origenCacao,
       opcionesTrm: { endpoint: trmEndpoint, appToken: socrataAppToken },
+      volCacaoRespaldo: volRespaldo,
     });
   } catch (error) {
     return {

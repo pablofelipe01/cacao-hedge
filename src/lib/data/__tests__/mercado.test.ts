@@ -123,6 +123,20 @@ describe("obtenerMercado", () => {
     expect(advertencias.join(" ")).toMatch(/diferido/i);
   });
 
+  it("respeta la volatilidad de respaldo que configuró el usuario", async () => {
+    // El campo existía en la tabla pero no lo leía nadie: una opción que
+    // no hace nada es peor que no tenerla.
+    const { mercado, advertencias } = await obtenerMercado({
+      ...BASE,
+      proveedor: proveedorFalso(serie(5, 5972)),
+      volCacaoRespaldo: 0.62,
+      opcionesTrm: { ...BASE.opcionesTrm, fetchImpl: async () => respuestaTrm(250) },
+    });
+
+    expect(mercado.volAnualizada).toBe(0.62);
+    expect(advertencias.join(" ")).toContain("62 %");
+  });
+
   it("usa la volatilidad de respaldo y lo advierte si la serie es corta", async () => {
     const { mercado, advertencias, procedencia } = await obtenerMercado({
       ...BASE,

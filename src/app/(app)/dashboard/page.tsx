@@ -61,13 +61,21 @@ export default async function PaginaDashboard() {
           <h2 id="lotes" className="sr-only">Lotes</h2>
           <p className="tabular text-sm text-texto-suave">
             {lotes.length} lote(s) · {toneladas(toneladasTotales)} TM · equivalente a{" "}
-            {(toneladasTotales / CC_TONELADAS_POR_CONTRATO).toFixed(1)} contratos CC
+            {(toneladasTotales / CC_TONELADAS_POR_CONTRATO).toLocaleString("es-CO", {
+              maximumFractionDigits: 1,
+            })}{" "}
+            contratos CC
           </p>
           <ul className="divide-y divide-borde rounded-lg border border-borde bg-superficie">
             {lotes.map((lote) => (
               <li key={lote.id} className="flex flex-wrap items-baseline justify-between gap-3 px-4 py-3">
                 <div>
-                  <p className="font-medium">{lote.nombre}</p>
+                  <Link
+                    href={`/inventarios/${lote.id}`}
+                    className="font-medium hover:text-cacao hover:underline"
+                  >
+                    {lote.nombre}
+                  </Link>
                   <p className="text-sm text-texto-suave">
                     {lote.ubicacion} · embarque {fechaLegible(lote.fecha_embarque)} ·
                     diferencial {Number(lote.diferencial_usd_tm) > 0 ? "+" : ""}

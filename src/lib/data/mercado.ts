@@ -78,6 +78,13 @@ export interface OpcionesMercado {
   /** Fecha de referencia, ISO. Por defecto, hoy. Inyectable para tests. */
   hoy?: string;
   opcionesTrm?: OpcionesTrm;
+  /**
+   * Volatilidad de respaldo del cacao cuando la serie no alcanza.
+   * Viene de `configuracion.vol_fallback` del usuario.
+   */
+  volCacaoRespaldo?: number;
+  /** Volatilidad de respaldo de la TRM. */
+  volTrmRespaldo?: number;
 }
 
 /**
@@ -108,6 +115,8 @@ export async function obtenerMercado(
     origenCacao,
     hoy = aFechaIso(new Date()),
     opcionesTrm = {},
+    volCacaoRespaldo = VOL_CACAO_RESPALDO,
+    volTrmRespaldo = VOL_TRM_RESPALDO,
   } = opciones;
 
   const desde = restarDias(hoy, DIAS_HISTORICO);
@@ -167,21 +176,21 @@ export async function obtenerMercado(
 
   const volCacao = volatilidadHistorica(
     serieCacao.barras.map((b) => b.cierre),
-    VOL_CACAO_RESPALDO,
+    volCacaoRespaldo,
   );
   const volTrm = volatilidadHistorica(
     serieTrm.barras.map((b) => b.cierre),
-    VOL_TRM_RESPALDO,
+    volTrmRespaldo,
   );
 
   if (volCacao.usoRespaldo) {
     advertencias.push(
-      `La serie de cacao tiene solo ${volCacao.observaciones} retornos utilizables: se usó la volatilidad de respaldo del ${(VOL_CACAO_RESPALDO * 100).toFixed(0)} %.`,
+      `La serie de cacao tiene solo ${volCacao.observaciones} retornos utilizables: se usó la volatilidad de respaldo del ${(volCacaoRespaldo * 100).toFixed(0)} %.`,
     );
   }
   if (volTrm.usoRespaldo) {
     advertencias.push(
-      `La serie de TRM tiene solo ${volTrm.observaciones} retornos utilizables: se usó la volatilidad de respaldo del ${(VOL_TRM_RESPALDO * 100).toFixed(0)} %.`,
+      `La serie de TRM tiene solo ${volTrm.observaciones} retornos utilizables: se usó la volatilidad de respaldo del ${(volTrmRespaldo * 100).toFixed(0)} %.`,
     );
   }
   if (serieCacao.desdeCache) {

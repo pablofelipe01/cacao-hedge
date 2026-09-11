@@ -19,8 +19,8 @@ ejecutivo narrativo en español.
 | 2 | Motor de cálculo puro con tests (contratos, estrategias, escenarios, VaR, Monte Carlo) | ✅ Completa |
 | 3 | Capa de datos (Yahoo, Barchart, TRM, caché) | ✅ Completa |
 | 4 | UI de formulario y resultados con gráficos | ✅ Completa |
-| 5 | Informe narrativo con Anthropic + exportación PDF | Pendiente |
-| 6 | Historial, configuración de supuestos, pulido | Pendiente |
+| 5 | Informe narrativo con Anthropic + exportación PDF | ✅ Completa |
+| 6 | Historial, configuración de supuestos, pulido | ✅ Completa |
 
 ---
 
@@ -36,7 +36,7 @@ npm run dev                  # http://localhost:3000
 |---|---|
 | `npm run dev` | Servidor de desarrollo (Turbopack) |
 | `npm run build` | Build de producción + chequeo de tipos |
-| `npm test` | Tests unitarios del motor (Vitest) — 142 tests |
+| `npm test` | Tests unitarios (Vitest) — 326 tests |
 | `npm run test:watch` | Tests en modo observación |
 | `npm run typecheck` | `tsc --noEmit` |
 | `npm run lint` | ESLint |
@@ -83,7 +83,7 @@ npx supabase gen types typescript --project-id <ref> > src/types/database.ts
 
 TypeScript puro: sin I/O, sin reloj del sistema, sin aleatoriedad sin semilla.
 Guardar las entradas de un análisis basta para reproducirlo bit a bit meses
-después. 142 tests, 98 % de cobertura de sentencias.
+después. 98 % de cobertura de sentencias.
 
 | Módulo | Responsabilidad |
 |---|---|
@@ -140,6 +140,88 @@ para complementarlo, no para repetirlo.
 
 ---
 
+## Historial y supuestos (fase 6)
+
+**El historial compara decisiones, no recalcula.** Cada análisis guardó su propia
+fotografía de mercado y sus supuestos, así que la ficha del lote muestra cómo
+cambió la recomendación al moverse el precio. En los datos de prueba se ve: los
+análisis contra el continuo de Yahoo daban 13,6 % de probabilidad de pérdida sin
+cubrir, y el mismo lote contra el histórico real de CCZ26 da 18,0 %, porque la
+volatilidad medida sobre 426 días reales es mayor.
+
+**Cambiar los supuestos no toca lo ya calculado.** Esa inmutabilidad es lo que
+permite reabrir un análisis de hace meses y que las cifras sigan cuadrando.
+
+### Dos defectos que solo aparecieron al usar la aplicación
+
+**`vol_fallback` era configuración muerta.** La columna existía en la tabla desde
+la fase 1 y la pantalla iba a exponerla, pero ningún código la leía: la capa de
+datos usaba una constante del módulo. Una opción que no hace nada es peor que no
+tenerla, así que se conectó antes de ponerla en la interfaz.
+
+**El punto decimal era ambiguo y rompía el formulario.** El navegador rellena los
+valores por defecto con el punto de JavaScript (`4.25`), mientras que en Colombia
+el punto separa miles. El parser trataba todo punto como separador de miles, así
+que una tasa del 4,25 % se leía como 425 % y el formulario fallaba sin que el
+usuario hubiera tocado nada. Ahora `interpretarNumero` resuelve la ambigüedad:
+con ambos separadores manda el último; solo con punto, separa miles si agrupa de
+tres en tres (`14.500`) y es decimal en cualquier otro caso (`4.25`).
+
+---
+
+## Informe narrativo (fase 5)
+
+Un modelo de lenguaje redacta el informe ejecutivo a partir de los resultados
+ya calculados. **El modelo no calcula nada**: todas las cifras salen del motor
+de `src/lib/engine`, que está testeado; el modelo interpreta, redacta y señala
+los riesgos que ningún número captura.
+
+| Módulo | Responsabilidad |
+|---|---|
+| `resumen.ts` | Extrae del análisis un resumen compacto: solo las cifras citables |
+| `prompt.ts` | Prompt de sistema, con la prohibición de inventar cifras |
+| `informe.ts` | Llamada a la API, errores tipados y verificación |
+| `verificacion.ts` | **Comprueba que ninguna cifra del texto fue inventada** |
+| `cliente.ts` | Cliente del SDK, con `server-only` para que la API key no salga |
+
+### La verificación de cifras
+
+Prohibirle al modelo que invente números es necesario pero no suficiente: una
+instrucción es una petición, no una garantía. Así que se comprueba.
+
+Tras generar el informe se extrae **cada cifra del texto** y se busca en el
+resumen que se le entregó, aceptando cualquier forma de escribirla —
+`652.200.000`, «652,2 millones», «657 M» son el mismo valor— y el valor
+absoluto, porque una pérdida suele redactarse en positivo. Lo que no rastree a
+un dato de entrada se reporta, y la interfaz lo muestra: si todo cuadra dice
+«las N cifras citadas corresponden a valores del análisis»; si no, nombra las
+dudosas y pide contrastarlas con la tabla.
+
+No bloquea la entrega — un informe con una cifra dudosa sigue sirviendo — pero
+el usuario se entera en vez de recibirlo como palabra sagrada.
+
+*Resultado medido:* dos generaciones independientes con datos reales, **88/88 y
+86/86 cifras rastreables**. Ninguna inventada.
+
+El resumen que se envía es un extracto, no el análisis completo: mandar los 63
+escenarios por cada una de las nueve estrategias sería derrochar tokens y, sobre
+todo, ampliar la superficie donde el modelo puede equivocarse.
+
+### Exportación a PDF
+
+El botón abre el diálogo de impresión del navegador. Es deliberado: una librería
+de PDF en el cliente pesa cientos de kilobytes, rasteriza mal los gráficos SVG y
+obliga a mantener un segundo motor de maquetación. Imprimir respeta el tamaño de
+papel del usuario y los gráficos salen vectoriales.
+
+A cambio, la calidad depende por completo del `@media print` de `globals.css`,
+que por eso invierte el tema a tinta sobre papel, oculta la navegación, evita
+partir gráficos y tablas entre páginas, fuerza la impresión de los fondos de
+color del heatmap —que son el dato, no decoración— y añade el aviso legal al
+pie del documento.
+
+---
+
 ## Interfaz (fase 4)
 
 | Ruta | Qué hace |
@@ -148,6 +230,8 @@ para complementarlo, no para repetirlo.
 | `/inventarios/nuevo` | Alta de lote; al guardar abre el análisis precargado |
 | `/analisis/nuevo` | Formulario del análisis, rellenable desde un lote |
 | `/analisis/[id]` | Resultados: métricas, tabla comparativa, payoff, heatmap, Monte Carlo y márgenes |
+| `/inventarios/[id]` | Ficha del lote e historial de sus análisis |
+| `/configuracion` | Supuestos de cálculo del usuario |
 | `/importar` | Importación de históricos en CSV a la caché (arrastrar y soltar) |
 
 ### Decisiones de visualización
@@ -288,6 +372,22 @@ dentro del cuerpo, así que se valida siempre el sobre, nunca solo el HTTP.
 | Barchart OnDemand | ⏸ Implementado; requiere `BARCHART_API_KEY` (producto aparte) |
 | CSV de Barchart | ✅ Parser probado con export real, incluido pie de página y celdas `N/A` |
 | Caché en `precios` | ✅ Ciclo completo verificado con el código de producción contra el Postgres real: escritura, relectura, idempotencia del upsert y RLS bloqueando a `anon` |
+
+---
+
+## Cobertura de tests
+
+326 tests. La cobertura no es uniforme a propósito:
+
+| Área | Sentencias | Por qué |
+|---|---:|---|
+| `lib/engine` | 98 % | Es donde vive el dinero. Cálculo puro, todo testeable |
+| `lib/data` | 95 % | Parsers, reintentos y caché, con fixtures de respuestas reales |
+| `lib/anthropic` | 82 % | El resumen, la verificación de cifras y los errores; la llamada real se probó contra la API |
+| `lib/acciones` | 22 % | Orquestación fina sobre piezas ya testeadas. Verificadas de extremo a extremo en el navegador, no con mocks frágiles |
+
+Los tests que dependen de los históricos de barchart.com se saltan solos si los
+archivos no están (`describe.skipIf`), para que un clon limpio no falle.
 
 ---
 

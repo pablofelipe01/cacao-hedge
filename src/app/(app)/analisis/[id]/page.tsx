@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import { Disclaimer } from "@/components/Disclaimer";
 import { TablaEstrategias } from "@/components/TablaEstrategias";
 import { TarjetaMetrica } from "@/components/TarjetaMetrica";
+import { InformeNarrativo } from "./InformeNarrativo";
 import { SelectorEstrategia } from "./SelectorEstrategia";
 import { crearClienteServidor } from "@/lib/supabase/server";
 import { cop, fechaLegible, porcentaje, toneladas, usdTm } from "@/lib/formato";
@@ -48,7 +49,7 @@ export default async function PaginaResultados({ params }: PageProps<"/analisis/
   // RLS ya restringe la fila al dueño: si no aparece, no es suya o no existe.
   const { data: analisis } = await supabase
     .from("analisis")
-    .select("id, created_at, entradas, mercado, resultados, inventario_id")
+    .select("id, created_at, entradas, mercado, resultados, inventario_id, informe_md, informe_meta")
     .eq("id", id)
     .maybeSingle();
 
@@ -182,6 +183,24 @@ export default async function PaginaResultados({ params }: PageProps<"/analisis/
           </ul>
         </section>
       ) : null}
+
+      {/* --- Informe narrativo ------------------------------------------- */}
+      <InformeNarrativo
+        analisisId={analisis.id}
+        informe={analisis.informe_md}
+        meta={
+          analisis.informe_meta as unknown as {
+            modelo?: string;
+            generadoEn?: string;
+            verificacion?: {
+              totalCitadas: number;
+              rastreables: number;
+              limpio: boolean;
+              sospechosas: { textual: string; contexto: string }[];
+            };
+          } | null
+        }
+      />
 
       {/* --- Tabla comparativa ------------------------------------------ */}
       <section aria-labelledby="estrategias" className="space-y-3">

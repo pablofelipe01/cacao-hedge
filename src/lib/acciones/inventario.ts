@@ -68,4 +68,6 @@ export async function archivarLote(formData: FormData): Promise<void> {
   await supabase.from("inventarios").update({ activo: false }).eq("id", id);
 
   revalidatePath("/dashboard");
+  revalidatePath(`/inventarios/${id}`);
+  redirect("/dashboard");
 }

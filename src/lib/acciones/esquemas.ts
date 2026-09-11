@@ -8,11 +8,47 @@
 
 import { z } from "zod";
 
-/** Convierte una cadena de formulario a número aceptando coma decimal. */
-const numeroDeTexto = z
-  .string()
-  .trim()
-  .transform((valor) => Number(valor.replace(/\./g, "").replace(",", ".")));
+/**
+ * Convierte una cadena de formulario a número resolviendo la ambigüedad
+ * del punto, que en Colombia separa miles y en inglés decimales.
+ *
+ * Hace falta porque el formulario mezcla ambas convenciones sin querer:
+ * el usuario escribe «14.500» pensando en catorce mil quinientos, pero el
+ * navegador rellena los valores por defecto con el punto decimal de
+ * JavaScript («4.25»). Tratar todo punto como separador de miles convertía
+ * una tasa del 4,25 % en 425 % y hacía fallar el formulario sin que el
+ * usuario hubiera tocado nada.
+ *
+ * Reglas, en orden:
+ *   1. Si hay punto y coma, manda el último: es el decimal.
+ *   2. Solo coma: es el decimal.
+ *   3. Solo punto: separa miles si va seguido de exactamente tres cifras
+ *      (14.500); en cualquier otro caso es decimal (4.25).
+ */
+export function interpretarNumero(entrada: string): number {
+  const valor = entrada.trim().replace(/\s/g, "");
+  if (valor === "") return Number.NaN;
+
+  const ultimoPunto = valor.lastIndexOf(".");
+  const ultimaComa = valor.lastIndexOf(",");
+
+  if (ultimoPunto !== -1 && ultimaComa !== -1) {
+    return ultimaComa > ultimoPunto
+      ? Number(valor.replace(/\./g, "").replace(",", "."))
+      : Number(valor.replace(/,/g, ""));
+  }
+
+  if (ultimaComa !== -1) return Number(valor.replace(/\./g, "").replace(",", "."));
+
+  if (ultimoPunto !== -1) {
+    const esMiles = /^-?\d{1,3}(?:\.\d{3})+$/.test(valor);
+    return Number(esMiles ? valor.replace(/\./g, "") : valor);
+  }
+
+  return Number(valor);
+}
+
+const numeroDeTexto = z.string().trim().transform(interpretarNumero);
 
 const numeroPositivo = (etiqueta: string) =>
   numeroDeTexto.pipe(
@@ -101,3 +137,45 @@ export function erroresPorCampo(error: z.ZodError): Record<string, string> {
   }
   return salida;
 }
+
+/**
+ * Supuestos de cálculo del usuario.
+ *
+ * Los rangos no son caprichosos: replican los CHECK de la tabla, para que
+ * un valor imposible se rechace con un mensaje entendible aquí en vez de
+ * reventar contra una restricción de Postgres.
+ */
+export const esquemaConfiguracion = z
+  .object({
+    margenInicialUsd: numeroPositivo("El margen inicial"),
+    margenMantenimientoUsd: numeroPositivo("El margen de mantenimiento"),
+    comisionUsdContrato: numeroNoNegativo("La comisión"),
+    tasaLibreRiesgoPorcentaje: numeroDeTexto.pipe(
+      z.number().min(0, "La tasa no puede ser negativa.").max(50, "Una tasa por encima del 50 % anual no es plausible."),
+    ),
+    volFallbackPorcentaje: numeroDeTexto.pipe(
+      z.number().gt(0, "La volatilidad de respaldo debe ser mayor que cero.").max(300, "Una volatilidad por encima del 300 % no es plausible."),
+    ),
+    diasHabilesAnio: numeroDeTexto.pipe(
+      z.number().int("Debe ser un número entero.").min(200).max(366),
+    ),
+    nivelConfianzaVarPorcentaje: numeroDeTexto.pipe(
+      z.number().gt(50, "El nivel de confianza debe superar el 50 %.").lt(100, "El nivel de confianza no puede llegar al 100 %."),
+    ),
+    trayectoriasMc: numeroDeTexto.pipe(
+      z.number().int("Debe ser un número entero.").min(1000, "Con menos de 1.000 trayectorias la simulación es ruido.").max(200000, "Más de 200.000 trayectorias no mejora el resultado y tarda demasiado."),
+    ),
+  })
+  .superRefine((datos, ctx) => {
+    // Un mantenimiento superior al inicial haría que la posición naciera
+    // ya en llamada de margen: la tabla lo prohíbe y aquí se explica.
+    if (datos.margenMantenimientoUsd > datos.margenInicialUsd) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["margenMantenimientoUsd"],
+        message: "El margen de mantenimiento no puede superar al inicial.",
+      });
+    }
+  });
+
+export type DatosConfiguracion = z.infer<typeof esquemaConfiguracion>;

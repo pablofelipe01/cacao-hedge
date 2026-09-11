@@ -108,3 +108,85 @@ body {
 .tabular {
   font-variant-numeric: tabular-nums;
 }
+
+/* ---------------------------------------------------------------------
+   Impresión y exportación a PDF
+
+   El botón «Exportar PDF» abre el diálogo de impresión del navegador y
+   deja que el usuario guarde como PDF. Es deliberado: una librería de
+   PDF en el cliente pesa cientos de kilobytes, rasteriza mal los
+   gráficos SVG y obliga a mantener un segundo motor de maquetación.
+   Imprimir respeta el tamaño de papel del usuario y los gráficos salen
+   vectoriales. A cambio, la calidad depende por completo de estas
+   reglas, así que están escritas con cuidado.
+   --------------------------------------------------------------------- */
+@media print {
+  /* Tinta sobre papel: el tema oscuro gasta tóner y se lee peor. */
+  :root {
+    --fondo: #ffffff;
+    --superficie: #ffffff;
+    --borde: #d4d4d4;
+    --texto: #000000;
+    --texto-suave: #444444;
+    --cacao: #4a2f1a;
+    --cacao-claro: #6b4426;
+    --ambar: #8a6410;
+    --viz-rejilla: #dddddd;
+    --viz-eje: #999999;
+    --viz-tenue: #555555;
+  }
+
+  @page {
+    margin: 16mm 14mm;
+  }
+
+  body {
+    background: #ffffff;
+    font-size: 10.5pt;
+  }
+
+  /* Navegación, botones y selectores no significan nada en papel. */
+  header nav,
+  .print\:hidden,
+  button,
+  select {
+    display: none !important;
+  }
+
+  /* Sin sombras ni bordes redondeados: en papel son ruido. */
+  section,
+  article,
+  div {
+    box-shadow: none !important;
+  }
+
+  /* Que un encabezado no quede solo al final de la página. */
+  h1, h2, h3, h4 {
+    break-after: avoid-page;
+    page-break-after: avoid;
+  }
+
+  /* Ni una tabla ni un gráfico partidos por la mitad. */
+  table,
+  figure,
+  article {
+    break-inside: avoid-page;
+  }
+
+  /* Los fondos de color del heatmap deben imprimirse: son el dato. */
+  * {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  /* El aviso legal viaja con el documento, siempre. */
+  main::after {
+    content: "CacaoHedge — herramienta de apoyo a decisiones. No constituye asesoría financiera, de inversión ni tributaria. Verifique márgenes, comisiones y condiciones con su bróker antes de operar.";
+    display: block;
+    margin-top: 10mm;
+    padding-top: 3mm;
+    border-top: 1px solid #d4d4d4;
+    font-size: 8pt;
+    color: #444444;
+  }
+}

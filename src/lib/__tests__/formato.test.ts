@@ -11,7 +11,7 @@ describe("cop", () => {
   it("distingue millones de miles de millones sin ambigüedad", () => {
     // «MM» se lee como millones en Colombia: usarlo para miles de
     // millones haría leer 2.617 millones como 2,6 millones.
-    expect(cop(2_617_400_000)).toBe("2,6 mil M");
+    expect(cop(2_617_400_000)).toBe("2,62 mil M");
     expect(cop(2_617_400)).toBe("2,6 M");
     expect(cop(2_617_400_000)).not.toContain("MM");
   });
@@ -27,9 +27,16 @@ describe("cop", () => {
     expect(cop(1_000_000_000)).toBe("1 mil M");
   });
 
+  it("conserva la cifra significativa en miles de millones", () => {
+    // Con un solo decimal, 1.986,5 millones se imprimía «2 mil M».
+    expect(cop(1_986_500_000)).toBe("1,99 mil M");
+    expect(cop(2_617_400_000)).toBe("2,62 mil M");
+  });
+
   it("conserva el signo de las pérdidas", () => {
     expect(cop(-330_800_000)).toBe("-330,8 M");
     expect(cop(-2_500_000_000)).toBe("-2,5 mil M");
+    expect(cop(-1_986_500_000)).toBe("-1,99 mil M");
   });
 });
 

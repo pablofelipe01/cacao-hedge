@@ -15,17 +15,29 @@ function requerida(nombre: string, valor: string | undefined): string {
   return valor;
 }
 
-/** Variables visibles en el navegador (prefijo NEXT_PUBLIC_). */
+/**
+ * Variables visibles en el navegador (prefijo NEXT_PUBLIC_).
+ *
+ * Se leen con getters, no al cargar el módulo: si se validaran al
+ * importar, cualquier archivo que arrastre `env.ts` en su cadena de
+ * imports reventaría sin las variables presentes, aunque no las use.
+ * Next sustituye `process.env.NEXT_PUBLIC_*` en tiempo de compilación
+ * también dentro de un getter, así que el navegador sigue recibiendo el
+ * valor literal.
+ */
 export const envPublico = {
-  supabaseUrl: requerida(
-    "NEXT_PUBLIC_SUPABASE_URL",
-    process.env.NEXT_PUBLIC_SUPABASE_URL,
-  ),
-  supabaseAnonKey: requerida(
-    "NEXT_PUBLIC_SUPABASE_ANON_KEY",
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
-  ),
-  siteUrl: process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000",
+  get supabaseUrl(): string {
+    return requerida("NEXT_PUBLIC_SUPABASE_URL", process.env.NEXT_PUBLIC_SUPABASE_URL);
+  },
+  get supabaseAnonKey(): string {
+    return requerida(
+      "NEXT_PUBLIC_SUPABASE_ANON_KEY",
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+    );
+  },
+  get siteUrl(): string {
+    return process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000";
+  },
 };
 
 /**

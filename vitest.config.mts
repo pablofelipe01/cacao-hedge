@@ -13,6 +13,8 @@ export default defineConfig({
   resolve: {
     alias: {
       "@": fileURLToPath(new URL("./src", import.meta.url)),
+      // Ver src/lib/__mocks__/server-only.ts.
+      "server-only": fileURLToPath(new URL("./src/lib/__mocks__/server-only.ts", import.meta.url)),
     },
   },
 });
