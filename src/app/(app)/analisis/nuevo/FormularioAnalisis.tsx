@@ -65,6 +65,7 @@ const TEXTOS: Record<Situacion, {
   ayudaFecha: string;
   diferencial: string;
   ayudaDiferencial: string;
+  placeholderDiferencial: string;
   precio: string;
   ayudaPrecio: string;
 }> = {
@@ -79,7 +80,8 @@ const TEXTOS: Record<Situacion, {
       "Cuándo sale el contenedor. Marca el horizonte del riesgo y el vencimiento de las opciones.",
     diferencial: "Diferencial sobre Nueva York (USD/TM)",
     ayudaDiferencial:
-      "La prima o descuento de SU cacao frente al futuro. Positivo si le pagan por encima. La cobertura NO fija este número.",
+      "La prima o descuento de SU cacao frente al futuro: positivo si le pagan por encima de la bolsa, negativo (−250) si por debajo. La cobertura NO fija este número.",
+    placeholderDiferencial: "250",
     precio: "Precio pactado (USD/TM)",
     ayudaPrecio:
       "Con el precio cerrado el riesgo de mercado ya no existe: lo que queda vivo es el cambiario.",
@@ -96,9 +98,10 @@ const TEXTOS: Record<Situacion, {
     fecha: "Fecha de entrega",
     ayudaFecha:
       "Cuándo debe entregar. Marca hasta cuándo corre el riesgo de que el cacao suba de precio.",
-    diferencial: "Lo que paga al productor sobre Nueva York (USD/TM)",
+    diferencial: "Diferencia entre lo que paga al productor y Nueva York (USD/TM)",
     ayudaDiferencial:
-      "Cuánto paga por encima del futuro para comprar el físico. Positivo si paga prima. La cobertura NO fija este número: es su riesgo de base.",
+      "Futuro + diferencial = lo que le cuesta el físico. Comprar en Colombia por DEBAJO de la bolsa es lo normal: escríbalo con signo menos (−300). Positivo solo si paga prima sobre el futuro. La cobertura NO fija este número: es su riesgo de base.",
+    placeholderDiferencial: "-300",
     precio: "Precio al que cerró la venta (USD/TM)",
     ayudaPrecio:
       "El ingreso ya está fijo en este número. Todo el análisis mide qué tanto del margen se le come el costo de abastecerse.",
@@ -374,9 +377,9 @@ export function FormularioAnalisis({ lotes, loteInicial, series, bodega, desdeUr
             <input
               id="diferencialUsdTm"
               name="diferencialUsdTm"
-              inputMode="decimal"
+              inputMode="text"
               required
-              placeholder="250"
+              placeholder={t.placeholderDiferencial}
               value={campos.diferencialUsdTm}
               onChange={(e) => actualizar({ diferencialUsdTm: e.target.value })}
               className={CLASES_INPUT}

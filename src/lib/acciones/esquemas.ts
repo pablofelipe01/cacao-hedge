@@ -26,7 +26,10 @@ import { z } from "zod";
  *      (14.500); en cualquier otro caso es decimal (4.25).
  */
 export function interpretarNumero(entrada: string): number {
-  const valor = entrada.trim().replace(/\s/g, "");
+  // El menos tipográfico (−, U+2212) es lo que producen iOS y macOS con
+  // sustitución automática, y es visualmente idéntico al guion: si no se
+  // normaliza, «−300» se rechaza sin que el usuario vea por qué.
+  const valor = entrada.trim().replace(/\s/g, "").replace(/[\u2212\u2012-\u2015]/g, "-");
   if (valor === "") return Number.NaN;
 
   const ultimoPunto = valor.lastIndexOf(".");

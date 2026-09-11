@@ -93,7 +93,7 @@ const CIFRAS = [
   {
     termino: "Diferencial (o base)",
     definicion:
-      "La prima de su cacao fino de aroma frente al futuro de Nueva York. La cobertura NO fija este número, y es suyo: calidad, certificaciones y demanda de origen lo mueven aparte.",
+      "La distancia entre el precio de Nueva York y lo que usted paga o cobra de verdad. Futuro + diferencial = precio del físico, así que va con signo menos cuando compra por debajo de la bolsa, que al comprar en Colombia es lo habitual. La cobertura NO fija este número, y es suyo: calidad, certificaciones, logística y demanda de origen lo mueven aparte.",
   },
 ];
 
@@ -121,7 +121,7 @@ const LIMITES = [
   {
     titulo: "No fija su diferencial",
     texto:
-      "Cubrirse con futuros fija el componente de Nueva York, no lo que a usted le pagan —o paga— por encima de él. Ese riesgo de base sigue vivo y se modela aparte, precisamente para no esconderlo.",
+      "Cubrirse con futuros fija el componente de Nueva York, no la distancia entre la bolsa y su precio real. Si el futuro no se mueve pero esa distancia se abre 150 USD/TM, esos 150 los pone usted y la cobertura no le devuelve nada. Ese riesgo de base sigue vivo y se modela aparte, precisamente para no esconderlo.",
   },
   {
     titulo: "No parte contratos",
