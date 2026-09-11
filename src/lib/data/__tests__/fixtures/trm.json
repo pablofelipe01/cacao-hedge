@@ -1,0 +1,62 @@
+[
+  {
+    "valor": "3101.0",
+    "unidad": "COP",
+    "vigenciadesde": "2026-09-11T00:00:00.000",
+    "vigenciahasta": "2026-09-11T00:00:00.000"
+  },
+  {
+    "valor": "3099.48",
+    "unidad": "COP",
+    "vigenciadesde": "2026-09-10T00:00:00.000",
+    "vigenciahasta": "2026-09-10T00:00:00.000"
+  },
+  {
+    "valor": "3116.47",
+    "unidad": "COP",
+    "vigenciadesde": "2026-09-09T00:00:00.000",
+    "vigenciahasta": "2026-09-09T00:00:00.000"
+  },
+  {
+    "valor": "3126.08",
+    "unidad": "COP",
+    "vigenciadesde": "2026-09-05T00:00:00.000",
+    "vigenciahasta": "2026-09-08T00:00:00.000"
+  },
+  {
+    "valor": "3141.36",
+    "unidad": "COP",
+    "vigenciadesde": "2026-09-04T00:00:00.000",
+    "vigenciahasta": "2026-09-04T00:00:00.000"
+  },
+  {
+    "valor": "3140.55",
+    "unidad": "COP",
+    "vigenciadesde": "2026-09-03T00:00:00.000",
+    "vigenciahasta": "2026-09-03T00:00:00.000"
+  },
+  {
+    "valor": "3184.0",
+    "unidad": "COP",
+    "vigenciadesde": "2026-09-02T00:00:00.000",
+    "vigenciahasta": "2026-09-02T00:00:00.000"
+  },
+  {
+    "valor": "3213.97",
+    "unidad": "COP",
+    "vigenciadesde": "2026-09-01T00:00:00.000",
+    "vigenciahasta": "2026-09-01T00:00:00.000"
+  },
+  {
+    "valor": "3202.79",
+    "unidad": "COP",
+    "vigenciadesde": "2026-08-29T00:00:00.000",
+    "vigenciahasta": "2026-08-31T00:00:00.000"
+  },
+  {
+    "valor": "3144.28",
+    "unidad": "COP",
+    "vigenciadesde": "2026-08-28T00:00:00.000",
+    "vigenciahasta": "2026-08-28T00:00:00.000"
+  }
+]

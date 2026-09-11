@@ -1,26 +1,110 @@
 @import "tailwindcss";
 
+/* ---------------------------------------------------------------------
+   CacaoHedge — paleta
+   Tonos de cacao para la marca; verde/rojo reservados exclusivamente
+   para señal financiera (ganancia / pérdida), nunca para decoración.
+   --------------------------------------------------------------------- */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --fondo: #fbf9f7;
+  --superficie: #ffffff;
+  --borde: #e7e0d8;
+  --texto: #1f1a16;
+  --texto-suave: #6b615a;
+  --cacao: #5c3a21;
+  --cacao-claro: #8b5e3c;
+  --ambar: #c8901f;
+  --positivo: #1a7f5a;
+  --negativo: #b3261e;
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+    --fondo: #16120f;
+    --superficie: #1f1a17;
+    --borde: #33291f;
+    --texto: #f2ede8;
+    --texto-suave: #a89c91;
+    --cacao: #c49a6c;
+    --cacao-claro: #d9b58c;
+    --ambar: #e0ac3c;
+    --positivo: #4ec79a;
+    --negativo: #f08a80;
   }
 }
 
+@theme inline {
+  --color-fondo: var(--fondo);
+  --color-superficie: var(--superficie);
+  --color-borde: var(--borde);
+  --color-texto: var(--texto);
+  --color-texto-suave: var(--texto-suave);
+  --color-cacao: var(--cacao);
+  --color-cacao-claro: var(--cacao-claro);
+  --color-ambar: var(--ambar);
+  --color-positivo: var(--positivo);
+  --color-negativo: var(--negativo);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--fondo);
+  color: var(--texto);
+}
+
+/* ---------------------------------------------------------------------
+   Tokens de visualización de datos
+   Paleta validada con el verificador de daltonismo contra las superficies
+   reales de esta app (claro #ffffff, oscuro #1f1a17). Los tonos de marca
+   visten el cromo de la interfaz; los datos NUNCA se pintan con ellos,
+   porque la marca no está validada para separación perceptual.
+   --------------------------------------------------------------------- */
+:root {
+  /* Categóricas, en orden fijo: identidad, nunca por ranking. */
+  --viz-1: #2a78d6; /* azul    */
+  --viz-2: #eb6834; /* naranja */
+  --viz-3: #1baf7a; /* aqua    */
+  --viz-4: #eda100; /* amarillo*/
+
+  /* Divergente para utilidad: pérdida ↔ ganancia, con gris en el cero.
+     Azul/rojo en vez de verde/rojo: se distinguen bajo daltonismo. */
+  --viz-neg-3: #b02a2a;
+  --viz-neg-2: #d03b3b;
+  --viz-neg-1: #e8918f;
+  --viz-cero:  #f0efec;
+  --viz-pos-1: #9ec5f4;
+  --viz-pos-2: #3987e5;
+  --viz-pos-3: #1c5cab;
+
+  /* Cromo del gráfico: recesivo por definición. */
+  --viz-rejilla: #e1e0d9;
+  --viz-eje: #c3c2b7;
+  --viz-tenue: #898781;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --viz-1: #3987e5;
+    --viz-2: #d95926;
+    --viz-3: #199e70;
+    --viz-4: #c98500;
+
+    --viz-neg-3: #f0a9a9;
+    --viz-neg-2: #e66767;
+    --viz-neg-1: #8c4443;
+    --viz-cero:  #383835;
+    --viz-pos-1: #1c4a7a;
+    --viz-pos-2: #3987e5;
+    --viz-pos-3: #9ec5f4;
+
+    --viz-rejilla: #2c2c2a;
+    --viz-eje: #383835;
+    --viz-tenue: #898781;
+  }
+}
+
+/* Las cifras se leen en columna: tabulares siempre. */
+.tabular {
+  font-variant-numeric: tabular-nums;
 }

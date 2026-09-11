@@ -39,3 +39,13 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+!.env.example
+
+# cobertura de tests
+/coverage
+
+# Históricos descargados de barchart.com.
+# Son datos de un proveedor comercial: publicarlos en el repositorio sería
+# redistribuirlos. Quedan en la máquina de cada quien y se cargan por
+# /importar. Los tests que los usan se saltan solos si no están.
+/docs/*.csv

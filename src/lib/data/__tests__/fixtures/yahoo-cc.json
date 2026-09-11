@@ -1,0 +1,136 @@
+{
+  "chart": {
+    "result": [
+      {
+        "meta": {
+          "currency": "USD",
+          "symbol": "CC=F",
+          "exchangeName": "NYB",
+          "fullExchangeName": "ICE Futures",
+          "instrumentType": "FUTURE",
+          "firstTradeDate": 946875600,
+          "regularMarketTime": 1789146048,
+          "hasPrePostMarketData": false,
+          "gmtoffset": -14400,
+          "timezone": "EDT",
+          "exchangeTimezoneName": "America/New_York",
+          "regularMarketPrice": 5911,
+          "regularMarketChangePercent": -0.855,
+          "fulldayPrice": 5911,
+          "fulldayChange": -51,
+          "fulldayChangePercent": -0.855,
+          "fiftyTwoWeekHigh": 7644,
+          "fiftyTwoWeekLow": 2798,
+          "regularMarketDayHigh": 6203,
+          "regularMarketDayLow": 5892,
+          "regularMarketVolume": 14171,
+          "shortName": "Cocoa Dec 26",
+          "chartPreviousClose": 5543,
+          "priceHint": 2,
+          "currentTradingPeriod": {
+            "pre": {
+              "timezone": "EDT",
+              "start": 1789099200,
+              "end": 1789099200,
+              "gmtoffset": -14400
+            },
+            "regular": {
+              "timezone": "EDT",
+              "start": 1789099200,
+              "end": 1789185540,
+              "gmtoffset": -14400
+            },
+            "post": {
+              "timezone": "EDT",
+              "start": 1789185540,
+              "end": 1789185540,
+              "gmtoffset": -14400
+            }
+          },
+          "dataGranularity": "1d",
+          "range": "1mo",
+          "validRanges": [
+            "1d",
+            "5d",
+            "1mo",
+            "3mo",
+            "6mo",
+            "1y",
+            "2y",
+            "5y",
+            "10y",
+            "ytd",
+            "max"
+          ]
+        },
+        "timestamp": [
+          1786420800,
+          1786507200,
+          1786593600,
+          1786680000,
+          1786939200,
+          1787025600,
+          1787112000,
+          1787198400
+        ],
+        "indicators": {
+          "quote": [
+            {
+              "low": [
+                5425,
+                5465,
+                5565,
+                5538,
+                5640,
+                5873,
+                5846,
+                5732
+              ],
+              "open": [
+                5875,
+                5527,
+                5650,
+                5638,
+                5726,
+                6065,
+                5901,
+                5920
+              ],
+              "close": [
+                5543,
+                5619,
+                5648,
+                null,
+                6044,
+                5905,
+                6046,
+                6088
+              ],
+              "volume": [
+                20930,
+                15458,
+                17232,
+                13712,
+                8421,
+                9727,
+                5660,
+                7638
+              ],
+              "high": [
+                5904,
+                5666,
+                5788,
+                5767,
+                6100,
+                6069,
+                6129,
+                6170
+              ]
+            }
+          ]
+        }
+      }
+    ],
+    "error": null
+  }
+}
