@@ -170,6 +170,30 @@ describe("esquemaLote", () => {
   });
 });
 
+describe("esquemaAnalisis · situación de cobertura", () => {
+  const base = {
+    toneladas: "15,275",
+    costoCopKg: "16468",
+    fechaEmbarque: "2026-12-10",
+    diferencialUsdTm: "250",
+    tipoContrato: "por_fijar_ny",
+  };
+
+  it("por defecto asume que hay cacao en bodega", () => {
+    // Es el único caso que el motor sabe calcular.
+    expect(esquemaAnalisis.safeParse(base).data?.situacion).toBe("tengo_cacao");
+  });
+
+  it("acepta las dos situaciones que existen en el negocio", () => {
+    expect(esquemaAnalisis.safeParse({ ...base, situacion: "tengo_cacao" }).success).toBe(true);
+    expect(esquemaAnalisis.safeParse({ ...base, situacion: "ya_vendi" }).success).toBe(true);
+  });
+
+  it("rechaza una situación inventada", () => {
+    expect(esquemaAnalisis.safeParse({ ...base, situacion: "otra_cosa" }).success).toBe(false);
+  });
+});
+
 describe("esquemaAnalisis", () => {
   it("acepta el origen de la serie o su ausencia", () => {
     const base = {

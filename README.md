@@ -140,6 +140,33 @@ para complementarlo, no para repetirlo.
 
 ---
 
+## Alcance: qué cobertura calcula y cuál no
+
+Hay dos situaciones distintas en el negocio, con riesgos opuestos:
+
+| Situación | El riesgo es que el precio… | La cobertura es… | ¿La calcula? |
+|---|---|---|---|
+| Tengo el cacao y no lo he vendido | **baje** | **vender** futuros | ✅ sí |
+| Ya vendí y me falta comprar el cacao | **suba** | **comprar** futuros | ❌ no |
+
+El motor implementa una sola fórmula de futuros, `(F₀ − F₁) × toneladas`, que es
+una posición corta. **No existe la cobertura larga.**
+
+Por eso el formulario pregunta la situación antes que nada y bloquea el segundo
+caso, tanto en la interfaz como en la acción de servidor. Calcular igual no daría
+un resultado incompleto: daría el consejo **invertido**. Recomendarle vender
+futuros a quien necesita comprarlos duplicaría su exposición en lugar de
+cubrirla, y el informe lo presentaría con la misma seguridad que un resultado
+correcto.
+
+Añadir el caso largo exige invertir el signo del resultado de futuros, rehacer
+los payoff de opciones (protección con *call*, no con *put*), reinterpretar la
+matriz de escenarios —el escenario malo pasa a ser la subida— y cambiar el
+sentido de las llamadas de margen. No es un parámetro: es una segunda familia de
+estrategias.
+
+---
+
 ## Inventario real desde la hoja operativa
 
 `/bodega` refleja la columna **CANTIDAD DISPONIBLE EN BODEGA** de la hoja de

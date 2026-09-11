@@ -69,6 +69,20 @@ export const tipoContratoEsquema = z.enum([
   "sin_contrato",
 ]);
 
+/**
+ * Los dos casos de cobertura, y solo uno está implementado.
+ *
+ * - `tengo_cacao`: hay inventario físico sin vender. El riesgo es que el
+ *   precio BAJE y la cobertura es VENDER futuros. Es lo que calcula el
+ *   motor.
+ * - `ya_vendi`: hay una venta cerrada y falta comprar el físico. El
+ *   riesgo es que el precio SUBA y la cobertura es COMPRAR futuros. El
+ *   motor no lo soporta, y dejarlo pasar daría la recomendación
+ *   exactamente invertida: vender futuros a quien necesita comprarlos
+ *   duplicaría su exposición en vez de cubrirla.
+ */
+export const situacionEsquema = z.enum(["tengo_cacao", "ya_vendi"]);
+
 const fechaIso = z
   .string()
   .regex(/^\d{4}-\d{2}-\d{2}$/, "La fecha debe tener formato aaaa-mm-dd.");
@@ -115,6 +129,7 @@ export type DatosLote = z.infer<typeof esquemaLote>;
  * las estrategias y elige por el percentil 5.
  */
 export const esquemaAnalisis = z.object({
+  situacion: situacionEsquema.default("tengo_cacao"),
   inventarioId: z.uuid().optional().or(z.literal("")),
   toneladas: numeroPositivo("Las toneladas"),
   costoCopKg: numeroNoNegativo("El costo por kilo"),

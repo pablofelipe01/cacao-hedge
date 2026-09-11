@@ -87,6 +87,17 @@ export async function ejecutarAnalisis(
   }
 
   const datos = validado.data;
+
+  // Cobertura larga: el motor no la implementa. Calcular igual daría la
+  // recomendación invertida —vender futuros a quien necesita comprarlos—
+  // y eso no es un análisis incompleto, es uno peligroso.
+  if (datos.situacion === "ya_vendi") {
+    return {
+      mensaje:
+        "Esta herramienta todavía no cubre el caso de una venta ya cerrada con el cacao por comprar. Ese caso exige COMPRAR futuros, y el motor solo calcula coberturas de venta: darle un resultado sería darle el consejo al revés.",
+    };
+  }
+
   const dias = diasHasta(datos.fechaEmbarque);
   if (dias <= 0) {
     return { errores: { fechaEmbarque: "La fecha de embarque debe ser futura." } };
