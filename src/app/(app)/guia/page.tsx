@@ -97,6 +97,21 @@ const CIFRAS = [
   },
 ];
 
+/**
+ * Las cuatro cifras que resumen el tamaño del cálculo.
+ *
+ * Van aquí y no leídas del motor porque son el contrato de la guía: si
+ * alguna cambia en `SUPUESTOS_POR_DEFECTO` o en `escenarios.ts`, esta
+ * página tiene que cambiar en el mismo commit, y una constante duplicada
+ * a la vista se corrige; una leída en silencio se desactualiza sola.
+ */
+const METODO = [
+  { cifra: "10.000", unidad: "trayectorias", pie: "simulación Monte Carlo, ajustable en Supuestos" },
+  { cifra: "63", unidad: "escenarios", pie: "matriz determinística: 7 precios × 3 TRM × 3 bases" },
+  { cifra: "95 %", unidad: "confianza", pie: "VaR y pérdida esperada en la cola" },
+  { cifra: "252", unidad: "días hábiles", pie: "base de anualización de la volatilidad" },
+];
+
 const LIMITES = [
   {
     titulo: "No pronostica el precio",
@@ -322,6 +337,89 @@ export default function PaginaGuia() {
             </div>
           ))}
         </dl>
+      </section>
+
+      {/* --- Cómo se calcula ----------------------------------------------- */}
+      <section aria-labelledby="metodo" className="space-y-3">
+        <h2 id="metodo" className="text-sm font-semibold">
+          Cómo se calcula
+        </h2>
+        <p className="max-w-prose text-sm leading-relaxed text-texto-suave">
+          Detrás de cada pantalla hay un motor de cálculo, no una hoja de cálculo.
+          Vale la pena saber qué hace, porque explica por qué puede confiar en las
+          cifras —y hasta dónde.
+        </p>
+
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          {METODO.map((m) => (
+            <div key={m.unidad} className="rounded-lg border border-borde bg-superficie p-3">
+              <p className="tabular text-lg font-semibold leading-tight">{m.cifra}</p>
+              <p className="text-xs font-medium">{m.unidad}</p>
+              <p className="mt-1 text-xs leading-relaxed text-texto-suave">{m.pie}</p>
+            </div>
+          ))}
+        </div>
+
+        <div className="space-y-4">
+          <div className="border-l-2 border-cacao-claro pl-4">
+            <h3 className="text-sm font-medium">Diez mil futuros posibles, no uno</h3>
+            <p className="mt-0.5 max-w-prose text-sm leading-relaxed text-texto-suave">
+              La simulación de Monte Carlo genera diez mil caminos del precio del
+              cacao y de la TRM hasta su fecha de embarque, y evalúa su operación
+              en cada uno. De ahí salen la probabilidad de pérdida y el peor 5 %:
+              no son estimaciones a ojo, son el recuento de diez mil resultados.
+              Cada camino se simula junto con su reflejo —si uno sube, el otro baja
+              lo mismo—, para que el azar del simulador no se confunda con un
+              efecto económico real.
+            </p>
+          </div>
+
+          <div className="border-l-2 border-cacao-claro pl-4">
+            <h3 className="text-sm font-medium">Y 63 escenarios escogidos a mano</h3>
+            <p className="mt-0.5 max-w-prose text-sm leading-relaxed text-texto-suave">
+              Además de la simulación, la matriz cruza siete movimientos de precio
+              (de −30 % a +30 %) con tres de la TRM y tres del diferencial. Responde
+              una pregunta distinta: no «con qué probabilidad», sino «si pasa
+              exactamente esto, cuánto gano o pierdo». Es la tabla de colores que
+              verá en los resultados.
+            </p>
+          </div>
+
+          <div className="border-l-2 border-cacao-claro pl-4">
+            <h3 className="text-sm font-medium">Con sus datos, no con supuestos</h3>
+            <p className="mt-0.5 max-w-prose text-sm leading-relaxed text-texto-suave">
+              La volatilidad no es un número inventado: sale del histórico real del
+              contrato CC de Nueva York que usted escoja. La tasa de cambio es la{" "}
+              <strong className="font-semibold text-texto">TRM oficial</strong> del
+              portal de datos abiertos del Estado colombiano. Las opciones se valoran
+              con Black-76, que es el modelo estándar para opciones sobre futuros.
+            </p>
+          </div>
+
+          <div className="border-l-2 border-cacao-claro pl-4">
+            <h3 className="text-sm font-medium">Las mismas cifras dentro de seis meses</h3>
+            <p className="mt-0.5 max-w-prose text-sm leading-relaxed text-texto-suave">
+              El azar de la simulación parte de una semilla fija y cada análisis
+              guarda la fotografía completa de sus datos de entrada y del mercado de
+              ese día. Si abre este análisis el año entrante, las cifras serán
+              idénticas —aunque el precio de hoy ya no tenga nada que ver—. Sirve
+              para auditar una decisión, no solo para tomarla.
+            </p>
+          </div>
+
+          <div className="border-l-2 border-ambar pl-4">
+            <h3 className="text-sm font-medium">La inteligencia artificial no calcula nada</h3>
+            <p className="mt-0.5 max-w-prose text-sm leading-relaxed text-texto-suave">
+              Conviene ser explícito: el informe escrito lo redacta un modelo de
+              lenguaje, pero <strong className="font-semibold text-texto">no hace
+              una sola operación aritmética</strong>. Recibe las cifras ya calculadas
+              por el motor y solo las interpreta. Después, el sistema revisa el texto
+              y busca cada número que aparece en él dentro de los datos de entrada: lo
+              que no rastree a un dato real queda marcado a la vista. Una instrucción
+              es una petición, no una garantía.
+            </p>
+          </div>
+        </div>
       </section>
 
       {/* --- Límites ------------------------------------------------------ */}
