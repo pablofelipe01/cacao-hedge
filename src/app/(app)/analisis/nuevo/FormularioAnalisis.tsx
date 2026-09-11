@@ -389,7 +389,7 @@ export function FormularioAnalisis({ lotes, loteInicial, series, bodega, desdeUr
             ayuda={esPorcentual ? t.ayudaDiferencialPct : t.ayudaDiferencial}
             error={errores.diferencialUsdTm}
           >
-            <div className="flex gap-2">
+            <div className="grid grid-cols-[1fr_7.5rem] gap-2">
               <input
                 id="diferencialUsdTm"
                 name="diferencialUsdTm"
@@ -400,7 +400,7 @@ export function FormularioAnalisis({ lotes, loteInicial, series, bodega, desdeUr
                 }
                 value={campos.diferencialUsdTm}
                 onChange={(e) => actualizar({ diferencialUsdTm: e.target.value })}
-                className={`${CLASES_INPUT} flex-1`}
+                className={CLASES_INPUT}
               />
               {/* La unidad va pegada al número, no en un paso aparte: es
                   parte de lo que el usuario escribe, y separarlas invita a
@@ -418,7 +418,7 @@ export function FormularioAnalisis({ lotes, loteInicial, series, bodega, desdeUr
                     diferencialUsdTm: "",
                   })
                 }
-                className={`${CLASES_INPUT} w-28 flex-none`}
+                className={CLASES_INPUT}
               >
                 <option value="absoluto">USD/TM</option>
                 <option value="porcentual">% de NY</option>
