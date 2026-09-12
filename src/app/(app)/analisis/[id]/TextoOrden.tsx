@@ -191,7 +191,7 @@ export function TextoOrden({
       </div>
 
       <div className="space-y-2">
-        <pre className="max-h-80 overflow-auto whitespace-pre-wrap rounded-md border border-borde bg-fondo p-3 text-xs leading-relaxed">
+        <pre className="whitespace-pre-wrap rounded-md border border-borde bg-fondo p-3 text-xs leading-relaxed">
           {texto}
         </pre>
 
