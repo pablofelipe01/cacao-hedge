@@ -31,12 +31,24 @@ import type { Escenario, Estrategia, Lote, Mercado, Supuestos } from "./tipos";
 /**
  * Desviación típica del choque de base al horizonte, USD/TM.
  *
- * El diferencial del cacao fino de aroma se mueve por calidad, logística
- * y demanda de origen, con poca relación con el futuro de NY. No existe
- * una serie pública fiable, así que este valor es un supuesto explícito
- * y editable, no una estimación de mercado.
+ * Ya no es un supuesto suelto: sale de `supuestos.desviacionBaseFraccion`
+ * escalada al futuro de referencia, y esa fracción está medida contra el
+ * precio que publican Nacional de Chocolates y Casa Luker.
+ *
+ * Se conserva el valor antiguo como respaldo para cuando no hay futuro
+ * con el que escalar, pero no debería usarse en un análisis real: son
+ * 50 USD/TM, cuatro veces menos que lo observado.
  */
 export const DESVIACION_BASE_POR_DEFECTO = 50;
+
+/** Desviación de la base en USD/TM a partir de los supuestos y el futuro. */
+export function desviacionBaseUsdTm(
+  supuestos: Pick<Supuestos, "desviacionBaseFraccion">,
+  futuroUsdTm: number,
+): number {
+  const s = supuestos.desviacionBaseFraccion * futuroUsdTm;
+  return Number.isFinite(s) && s > 0 ? s : DESVIACION_BASE_POR_DEFECTO;
+}
 
 export interface OpcionesMonteCarlo {
   trayectorias: number;
@@ -63,13 +75,24 @@ export interface DistribucionMonteCarlo {
   histograma: { desde: number; hasta: number; centro: number; cuenta: number }[];
 }
 
-/** Construye las opciones a partir de los supuestos del usuario. */
-export function opcionesDesdeSupuestos(supuestos: Supuestos): OpcionesMonteCarlo {
+/**
+ * Construye las opciones a partir de los supuestos del usuario.
+ *
+ * El futuro hace falta para escalar la base: sin él se cae al respaldo,
+ * que subestima el riesgo y por eso solo debería verse en pruebas.
+ */
+export function opcionesDesdeSupuestos(
+  supuestos: Supuestos,
+  futuroUsdTm?: number,
+): OpcionesMonteCarlo {
   return {
     trayectorias: supuestos.trayectoriasMc,
     semilla: supuestos.semillaMc,
     correlacionPrecioTrm: supuestos.correlacionPrecioTrm,
-    desviacionBaseUsdTm: DESVIACION_BASE_POR_DEFECTO,
+    desviacionBaseUsdTm:
+      futuroUsdTm != null
+        ? desviacionBaseUsdTm(supuestos, futuroUsdTm)
+        : DESVIACION_BASE_POR_DEFECTO,
   };
 }
 
@@ -119,7 +142,7 @@ export function simularMonteCarlo(
   lote: Lote,
   mercado: Mercado,
   supuestos: Supuestos,
-  opciones: OpcionesMonteCarlo = opcionesDesdeSupuestos(supuestos),
+  opciones: OpcionesMonteCarlo = opcionesDesdeSupuestos(supuestos, mercado.futuroUsdTm),
 ): DistribucionMonteCarlo {
   const { trayectorias, semilla, correlacionPrecioTrm, desviacionBaseUsdTm } = opciones;
 

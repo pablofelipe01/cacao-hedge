@@ -120,6 +120,27 @@ export interface Supuestos {
   correlacionPrecioTrm: number;
   /** Semilla del generador pseudoaleatorio: hace reproducible el Monte Carlo. */
   semillaMc: number;
+  /**
+   * Desviación típica del diferencial al horizonte, como FRACCIÓN del
+   * futuro. 0,033 = 3,3 % del precio de Nueva York.
+   *
+   * Va en fracción y no en USD/TM porque la base escala con el nivel de
+   * precios: los mismos 100 USD/TM eran un 1,7 % con el cacao a 6.000 y
+   * habrían sido un 0,8 % con el cacao a 12.000.
+   *
+   * El valor por defecto sale de medir 175 días del precio que publican
+   * Nacional de Chocolates y Casa Luker contra el futuro CC: el descuento
+   * tiene una desviación de 3,3 puntos porcentuales alrededor de su
+   * mediana. El valor anterior —50 USD/TM, un 0,8 %— subestimaba el
+   * riesgo de base cuatro veces, y es el único riesgo que la cobertura
+   * con futuros no toca.
+   *
+   * Se usa sin escalar por raíz del tiempo a propósito: el descuento
+   * REVIERTE a su media (cruza su mediana 36 veces en 175 días), así que
+   * tratarlo como un paseo aleatorio inflaría la dispersión al horizonte.
+   * Lo que se usa es su distribución incondicional.
+   */
+  desviacionBaseFraccion: number;
 }
 
 export const SUPUESTOS_POR_DEFECTO: Supuestos = {
@@ -132,6 +153,7 @@ export const SUPUESTOS_POR_DEFECTO: Supuestos = {
   trayectoriasMc: 10000,
   correlacionPrecioTrm: 0,
   semillaMc: 20260911,
+  desviacionBaseFraccion: 0.033,
 };
 
 /**

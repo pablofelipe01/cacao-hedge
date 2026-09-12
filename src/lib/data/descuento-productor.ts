@@ -100,7 +100,17 @@ export interface SerieCacao {
   fuente: FuentePrecio;
 }
 
-/** La serie de cacao cacheada con más días dentro del rango pedido. */
+/**
+ * La serie de cacao cacheada con más días dentro del rango pedido.
+ *
+ * PENDIENTE: el criterio es arbitrario y se nota. Un descuento contra
+ * Nueva York solo está definido contra un VENCIMIENTO concreto —
+ * septiembre y diciembre no cotizan igual—, así que debería medirse
+ * contra el mismo contrato que se va a usar en la cobertura, no contra
+ * el que más días tenga en la caché. Medido el 2026-09-11, CCU26 daba
+ * −14,9 % y CCZ26 −15,3 %: 0,4 puntos, unos 24 USD/TM. La página muestra
+ * contra cuál se cruzó para que la diferencia no sea invisible.
+ */
 async function simboloConMasSolape(
   cliente: ClienteSupabase,
   desde: string,

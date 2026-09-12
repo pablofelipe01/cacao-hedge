@@ -16,6 +16,7 @@ import {
   type Supuestos,
   type TipoOperacion,
 } from "@/lib/engine/tipos";
+import { descuentoVigente } from "@/lib/data/descuento-productor";
 import { diasHasta } from "@/lib/formato";
 
 import { erroresPorCampo, esquemaAnalisis, interpretarNumero } from "./esquemas";
@@ -136,7 +137,16 @@ export async function ejecutarAnalisis(
   }
 
   const supabase = await crearClienteServidor();
-  const { supuestos, volRespaldo } = await supuestosDelUsuario(usuario.id);
+  const { supuestos: supuestosBase, volRespaldo } = await supuestosDelUsuario(usuario.id);
+
+  // El riesgo de base medido con SUS datos, si sincronizó la hoja de
+  // precios. Es el único riesgo que la cobertura con futuros no toca, y
+  // el valor por defecto —medido sobre otro periodo— es solo un respaldo.
+  const medido = await descuentoVigente(supabase, usuario.id).catch(() => null);
+  const supuestos =
+    medido && medido.resumen.desviacion > 0
+      ? { ...supuestosBase, desviacionBaseFraccion: medido.resumen.desviacion }
+      : supuestosBase;
 
   // El selector envía "simbolo|fuente"; vacío significa la fuente en vivo.
   let origenCacao: OrigenCacao | undefined;

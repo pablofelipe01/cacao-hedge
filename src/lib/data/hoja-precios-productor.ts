@@ -294,6 +294,14 @@ export interface ResumenDescuento {
   /** Percentiles 5 y 95: el rango que debería simular la matriz. */
   p5: number;
   p95: number;
+  /**
+   * Desviación típica del descuento, en fracción del futuro.
+   *
+   * Es la que alimenta el eje de base de la matriz y el choque de base
+   * del Monte Carlo. Se usa sin escalar por raíz del tiempo porque el
+   * descuento revierte a su media en vez de derivar.
+   */
+  desviacion: number;
   minimo: number;
   maximo: number;
 }
@@ -322,6 +330,11 @@ export function resumirDescuento(
   const ordenados = [...valores].sort((a, b) => a - b);
   const ultimo = propios[propios.length - 1];
 
+  const media = valores.reduce((a, b) => a + b, 0) / valores.length;
+  const desviacion = Math.sqrt(
+    valores.reduce((a, b) => a + (b - media) ** 2, 0) / valores.length,
+  );
+
   return {
     comprador,
     dias: propios.length,
@@ -330,6 +343,7 @@ export function resumirDescuento(
     mediana: percentil(ordenados, 0.5),
     p5: percentil(ordenados, 0.05),
     p95: percentil(ordenados, 0.95),
+    desviacion,
     minimo: ordenados[0],
     maximo: ordenados[ordenados.length - 1],
   };

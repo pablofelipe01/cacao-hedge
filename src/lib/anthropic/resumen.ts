@@ -103,6 +103,12 @@ export interface ResumenCuantitativo {
     margenMantenimientoUsdPorContrato: number;
     comisionUsdPorContrato: number;
     tasaLibreRiesgoPorcentaje: number;
+    /**
+     * Tamaño del riesgo de base simulado, como porcentaje del futuro. Es
+     * la parte que la cobertura con futuros NO elimina, y el informe
+     * debería poder nombrarla.
+     */
+    riesgoBasePorcentajeDelFuturo: number;
   };
   constantes: {
     toneladasPorContratoCC: number;
@@ -250,6 +256,7 @@ export function construirResumen(entrada: EntradaResumen): ResumenCuantitativo {
       margenMantenimientoUsdPorContrato: r(supuestos.margenMantenimientoUsd, 0),
       comisionUsdPorContrato: r(supuestos.comisionUsdContrato),
       tasaLibreRiesgoPorcentaje: r(supuestos.tasaLibreRiesgo * 100, 2),
+      riesgoBasePorcentajeDelFuturo: r((supuestos.desviacionBaseFraccion ?? 0) * 100, 2),
     },
     constantes: {
       toneladasPorContratoCC: CC_TONELADAS_POR_CONTRATO,

@@ -12,7 +12,7 @@
  */
 
 import { construirEstrategias, operacionDe, resumirEstrategia } from "./estrategias";
-import { construirMatrizEscenarios } from "./escenarios";
+import { construirMatrizEscenarios, ejeBaseDesdeDesviacion } from "./escenarios";
 import { dimensionarCobertura, type DimensionamientoCobertura } from "./contratos";
 import {
   diferencialEnEscenarioUsdTm,
@@ -30,6 +30,7 @@ import {
   type ResultadoVar,
 } from "./riesgo";
 import {
+  desviacionBaseUsdTm,
   opcionesDesdeSupuestos,
   simularMonteCarlo,
   type DistribucionMonteCarlo,
@@ -224,11 +225,17 @@ export function analizarCobertura(
 ): ResultadoAnalisis {
   const supuestos: Supuestos = { ...SUPUESTOS_POR_DEFECTO, ...supuestosParciales };
 
-  const escenarios = construirMatrizEscenarios(mercado, (futuro) =>
-    diferencialEnEscenarioUsdTm(lote, futuro),
+  // El eje de base sale de la desviación medida del diferencial, no de un
+  // ±100 USD/TM clavado: sobre un futuro de 6.000 aquello era ±1,7 puntos
+  // porcentuales cuando lo observado son ±5,4.
+  const sigmaBase = desviacionBaseUsdTm(supuestos, mercado.futuroUsdTm);
+  const escenarios = construirMatrizEscenarios(
+    mercado,
+    (futuro) => diferencialEnEscenarioUsdTm(lote, futuro),
+    ejeBaseDesdeDesviacion(sigmaBase),
   );
   const estrategias = construirEstrategias(lote, mercado, supuestos);
-  const opcionesMc = opcionesDesdeSupuestos(supuestos);
+  const opcionesMc = opcionesDesdeSupuestos(supuestos, mercado.futuroUsdTm);
 
   const evaluaciones: EvaluacionEstrategia[] = estrategias.map((estrategia) => {
     const exposicion = calcularExposicion(estrategia, lote, mercado, supuestos);

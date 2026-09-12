@@ -23,6 +23,20 @@ export const EJE_TRM = [-0.1, 0, 0.1] as const;
 /** Desviaciones absolutas de la base, en USD/TM. */
 export const EJE_BASE = [-100, 0, 100] as const;
 
+/**
+ * Cuántas desviaciones típicas abre el eje de base.
+ *
+ * 1,645 deja los escenarios extremos en los percentiles 5 y 95 de la
+ * distribución del diferencial, que es la misma cola que reporta el VaR.
+ */
+export const SIGMAS_EJE_BASE = 1.645;
+
+/** El eje de base a partir de la desviación medida, en USD/TM. */
+export function ejeBaseDesdeDesviacion(desviacionUsdTm: number): number[] {
+  const extremo = Math.round(SIGMAS_EJE_BASE * desviacionUsdTm);
+  return extremo > 0 ? [-extremo, 0, extremo] : [0];
+}
+
 function formatearPorcentaje(x: number): string {
   const signo = x > 0 ? "+" : "";
   return `${signo}${Math.round(x * 100)} %`;
@@ -49,6 +63,7 @@ function formatearAbsoluto(x: number): string {
 export function construirMatrizEscenarios(
   mercado: Pick<Mercado, "futuroUsdTm" | "trm">,
   diferencialBase: number | ((futuroUsdTm: number) => number),
+  ejeBase: readonly number[] = EJE_BASE,
 ): Escenario[] {
   const baseDe = (futuro: number) =>
     typeof diferencialBase === "function" ? diferencialBase(futuro) : diferencialBase;
@@ -57,7 +72,7 @@ export function construirMatrizEscenarios(
 
   for (const dPrecio of EJE_PRECIO) {
     for (const dTrm of EJE_TRM) {
-      for (const dBase of EJE_BASE) {
+      for (const dBase of ejeBase) {
         const futuro = mercado.futuroUsdTm * (1 + dPrecio);
         escenarios.push({
           futuroUsdTm: futuro,
