@@ -137,3 +137,26 @@ describe("texto de orden para el bróker", () => {
     expect(admiteTextoDeOrden(nada)).toBe(false);
   });
 });
+
+describe("red de seguridad del sentido", () => {
+  it("se niega a redactar si la operación y la estrategia se contradicen", () => {
+    // Una venta pendiente de abastecer exige COMPRAR futuros. Si llega
+    // con una estrategia corta, algo se cruzó aguas arriba y redactar el
+    // texto pondría al cliente a duplicar su exposición.
+    expect(() =>
+      textoOrdenBroker({
+        ...BASE,
+        estrategia: futuros("corta"),
+        operacion: "venta_sin_comprar",
+      }),
+    ).toThrow(/Incoherencia en el sentido/);
+
+    expect(() =>
+      textoOrdenBroker({
+        ...BASE,
+        estrategia: futuros("larga"),
+        operacion: "inventario_sin_vender",
+      }),
+    ).toThrow(/Incoherencia en el sentido/);
+  });
+});

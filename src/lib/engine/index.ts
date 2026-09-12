@@ -17,7 +17,6 @@ import { dimensionarCobertura, type DimensionamientoCobertura } from "./contrato
 import {
   diferencialEnEscenarioUsdTm,
   esDiferencialPorcentual,
-  factorExposicion,
   precioEquilibrioUsdTm,
   precioMaximoCompraUsdTm,
   toneladasExpuestasAlPrecio,

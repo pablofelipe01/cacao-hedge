@@ -16,7 +16,7 @@
  */
 
 import { CC_MESES_VENCIMIENTO, CC_TONELADAS_POR_CONTRATO } from "./constantes";
-import type { Estrategia, TipoOperacion } from "./tipos";
+import { sentidoDe, type Estrategia, type TipoOperacion } from "./tipos";
 
 /** Vigencia de la orden, en el vocabulario que usan las mesas. */
 export type VigenciaOrden = "dia" | "gtc";
@@ -88,6 +88,16 @@ export function textoOrdenBroker(datos: DatosOrden): string {
   if (!admiteTextoDeOrden(estrategia)) {
     throw new Error(
       "El texto de orden solo cubre estrategias con futuros: las de opciones se negocian con strike y prima.",
+    );
+  }
+
+  // `operacion` y `estrategia.sentido` describen el mismo hecho por dos
+  // caminos distintos, y aquí eso deja de ser redundancia inútil: si
+  // alguna vez discrepan, el texto diría COMPRA donde va VENTA y alguien
+  // mandaría esa orden. Reventar es mucho mejor que redactarla.
+  if (sentidoDe(operacion) !== estrategia.sentido) {
+    throw new Error(
+      `Incoherencia en el sentido de la cobertura: la operación «${operacion}» exige una cobertura ${sentidoDe(operacion)} y la estrategia dice «${estrategia.sentido}». No se redacta la orden.`,
     );
   }
 
