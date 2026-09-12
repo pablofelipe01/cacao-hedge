@@ -8,7 +8,7 @@ import { InformeNarrativo } from "./InformeNarrativo";
 import { SelectorEstrategia } from "./SelectorEstrategia";
 import { crearClienteServidor } from "@/lib/supabase/server";
 import { cop, fechaLegible, porcentaje, toneladas, usdTm } from "@/lib/formato";
-import type { EvaluacionEstrategia, Recomendacion } from "@/lib/engine/index";
+import type { EvaluacionEstrategia, EvaluacionFx, Recomendacion } from "@/lib/engine/index";
 import type { DimensionamientoCobertura } from "@/lib/engine/contratos";
 import type { TipoOperacion } from "@/lib/engine/tipos";
 
@@ -20,6 +20,8 @@ interface ResultadosGuardados {
   dimensionamiento: DimensionamientoCobertura;
   evaluaciones: EvaluacionEstrategia[];
   recomendacion: Recomendacion;
+  /** Ausente en análisis guardados antes del módulo cambiario. */
+  cambiario?: EvaluacionFx[];
   advertencias: string[];
   advertenciasDatos: string[];
 }
@@ -273,6 +275,56 @@ export default async function PaginaResultados({ params }: PageProps<"/analisis/
         toneladas={entradas.toneladas}
         fechaEmbarque={entradas.fechaEmbarque}
       />
+
+      {/* --- Cobertura cambiaria ------------------------------------------ */}
+      {resultados.cambiario && resultados.cambiario.length > 0 ? (
+        <section aria-labelledby="cambiario" className="space-y-3">
+          <h2 id="cambiario" className="text-sm font-semibold">
+            El dólar: segunda decisión, aparte del precio
+          </h2>
+          <p className="max-w-prose text-sm leading-relaxed text-texto-suave">
+            Cubrir el cacao no toca el riesgo cambiario. Esto es lo que pasaría si
+            además vende a plazo parte de los dólares que va a recibir, sobre la
+            estrategia de precio recomendada.
+          </p>
+
+          <div className="overflow-x-auto">
+            <table className="tabular w-full text-sm">
+              <thead>
+                <tr className="border-b border-borde text-left text-xs text-texto-suave">
+                  <th scope="col" className="py-2 pr-3 font-medium">Dólar cubierto</th>
+                  <th scope="col" className="py-2 pr-3 text-right font-medium">Vende a plazo</th>
+                  <th scope="col" className="py-2 pr-3 text-right font-medium">Caso base</th>
+                  <th scope="col" className="py-2 pr-3 text-right font-medium">Percentil 5</th>
+                  <th scope="col" className="py-2 text-right font-medium">Desviación</th>
+                </tr>
+              </thead>
+              <tbody>
+                {resultados.cambiario.map((fx) => (
+                  <tr key={fx.ratio} className="border-b border-borde last:border-0">
+                    <td className="py-2 pr-3">{porcentaje(fx.ratio)}</td>
+                    <td className="py-2 pr-3 text-right whitespace-nowrap">
+                      {fx.notionalUsd > 0 ? `${usdTm(fx.notionalUsd)} USD` : "—"}
+                    </td>
+                    <td className="py-2 pr-3 text-right">{cop(fx.resumen.casoBase.utilidadCop)}</td>
+                    <td className="py-2 pr-3 text-right">{cop(fx.monteCarlo.percentiles.p5)}</td>
+                    <td className="py-2 text-right">{cop(fx.monteCarlo.desviacionCop)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          <p className="max-w-prose text-xs leading-relaxed text-texto-suave">
+            Tasa forward{" "}
+            <span className="tabular">{usdTm(resultados.cambiario[0].tasaForward, 2)}</span>{" "}
+            COP/USD, {usdTm(resultados.cambiario[0].puntosForward, 2)} pesos por encima de la
+            TRM de hoy. Con tasas en pesos por encima de las del dólar, vender divisas a
+            plazo <strong className="font-semibold text-texto">le paga</strong>: no es un
+            costo. Lo que sí renuncia es a la ganancia si el peso se devalúa.
+          </p>
+        </section>
+      ) : null}
 
       {/* --- Dimensionamiento -------------------------------------------- */}
       <section

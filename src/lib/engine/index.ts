@@ -13,6 +13,7 @@
 
 import { construirEstrategias, operacionDe, resumirEstrategia } from "./estrategias";
 import { construirMatrizEscenarios, ejeBaseDesdeDesviacion } from "./escenarios";
+import { construirCoberturasFx } from "./forward-fx";
 import { dimensionarCobertura, type DimensionamientoCobertura } from "./contratos";
 import {
   diferencialEnEscenarioUsdTm,
@@ -39,6 +40,8 @@ import { diasAAnios } from "./volatilidad";
 import {
   SUPUESTOS_POR_DEFECTO,
   type Lote,
+  type Escenario,
+  type Estrategia,
   type Mercado,
   type ResumenEstrategia,
   sentidoDe,
@@ -53,6 +56,22 @@ export interface EvaluacionEstrategia {
   /** null cuando la estrategia no usa futuros vendidos. */
   margen: AnalisisMargen | null;
   monteCarlo: DistribucionMonteCarlo;
+}
+
+/**
+ * La decisión cambiaria, para una estrategia de precio ya elegida.
+ *
+ * Se calcula sobre la recomendada y no sobre todas porque son dos
+ * decisiones en cadena, no un producto cartesiano: primero cuánto del
+ * precio se cubre, y solo después cuánto del dólar.
+ */
+export interface EvaluacionFx {
+  ratio: number;
+  notionalUsd: number;
+  tasaForward: number;
+  puntosForward: number;
+  monteCarlo: DistribucionMonteCarlo;
+  resumen: ResumenEstrategia;
 }
 
 export interface Recomendacion {
@@ -84,6 +103,13 @@ export interface ResultadoAnalisis {
   dimensionamiento: DimensionamientoCobertura;
   evaluaciones: EvaluacionEstrategia[];
   recomendacion: Recomendacion;
+  /**
+   * Qué pasa con el dólar, sobre la estrategia de precio recomendada.
+   *
+   * Vacío cuando el flujo neto en dólares no es positivo: no se vende a
+   * plazo lo que no se va a recibir.
+   */
+  cambiario: EvaluacionFx[];
   /** Riesgos estructurales detectados en las entradas. */
   advertencias: string[];
 }
@@ -248,6 +274,8 @@ export function analizarCobertura(
     };
   });
 
+  const recomendacion = recomendar(evaluaciones);
+
   return {
     lote,
     mercado,
@@ -264,9 +292,73 @@ export function analizarCobertura(
       sentidoDe(operacionDe(lote)),
     ),
     evaluaciones,
-    recomendacion: recomendar(evaluaciones),
+    recomendacion,
+    cambiario: evaluarCambiario(
+      evaluaciones.find((e) => e.resumen.estrategia.id === recomendacion.idEstrategia) ??
+        evaluaciones[0],
+      lote,
+      mercado,
+      escenarios,
+      supuestos,
+      opcionesMc,
+    ),
     advertencias: detectarAdvertencias(lote, mercado),
   };
+}
+
+/**
+ * Evalúa la estrategia elegida con distintos grados de cobertura
+ * cambiaria.
+ *
+ * El nocional sale del flujo FÍSICO neto en dólares del caso base —lo que
+ * de verdad se va a convertir a pesos—, no del valor del lote: con una
+ * venta ya cerrada cuyo costo también está en dólares, lo expuesto es el
+ * margen, no el ingreso completo.
+ */
+function evaluarCambiario(
+  base: EvaluacionEstrategia,
+  lote: Lote,
+  mercado: Mercado,
+  escenarios: readonly Escenario[],
+  supuestos: Supuestos,
+  opcionesMc: ReturnType<typeof opcionesDesdeSupuestos>,
+): EvaluacionFx[] {
+  const casoBase = base.resumen.casoBase;
+  const flujoNetoUsd = casoBase.ingresoFisicoUsd - casoBase.costoFisicoUsd;
+
+  // Sin dólares por recibir no hay nada que vender a plazo. Pasa, por
+  // ejemplo, en un inventario ya vendido a precio fijo cuyo costo se
+  // comió el ingreso.
+  if (!(flujoNetoUsd > 0)) return [];
+
+  const coberturas = construirCoberturasFx(
+    flujoNetoUsd,
+    mercado.trm,
+    supuestos.tasaCop,
+    supuestos.tasaLibreRiesgo,
+    diasAAnios(lote.diasAEmbarque),
+  );
+
+  return coberturas.map((fx) => {
+    const estrategia: Estrategia = {
+      ...base.resumen.estrategia,
+      id: `${base.resumen.estrategia.id}+fx${Math.round(fx.ratio * 100)}`,
+      nombre: `${base.resumen.estrategia.nombre} · dólar ${Math.round(fx.ratio * 100)} %`,
+      coberturaFx:
+        fx.notionalUsd > 0
+          ? { notionalUsd: fx.notionalUsd, tasaForward: fx.tasaForward }
+          : undefined,
+    };
+
+    return {
+      ratio: fx.ratio,
+      notionalUsd: fx.notionalUsd,
+      tasaForward: fx.tasaForward,
+      puntosForward: fx.puntos,
+      resumen: resumirEstrategia(estrategia, lote, mercado, escenarios, supuestos),
+      monteCarlo: simularMonteCarlo(estrategia, lote, mercado, supuestos, opcionesMc),
+    };
+  });
 }
 
 // Reexportación de la superficie pública del motor.

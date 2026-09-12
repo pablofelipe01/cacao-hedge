@@ -195,6 +195,7 @@ export async function ejecutarAnalisis(
         dimensionamiento: resultado.dimensionamiento,
         evaluaciones: resultado.evaluaciones,
         recomendacion: resultado.recomendacion,
+        cambiario: resultado.cambiario,
         advertencias: resultado.advertencias,
         advertenciasDatos: mercado.advertencias,
       }),

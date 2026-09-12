@@ -118,6 +118,15 @@ export interface Supuestos {
   trayectoriasMc: number;
   /** Correlación entre el retorno del futuro y el de la TRM. */
   correlacionPrecioTrm: number;
+  /**
+   * Tasa anual en pesos, para la paridad de tasas del forward COP/USD.
+   *
+   * Con tasas colombianas por encima de las estadounidenses la forward
+   * queda por encima de la TRM de contado: vender dólares a plazo le paga
+   * al exportador, no le cuesta. Por defecto 9,5 %, del orden de la tasa
+   * de captación colombiana; se ajusta en Supuestos.
+   */
+  tasaCop: number;
   /** Semilla del generador pseudoaleatorio: hace reproducible el Monte Carlo. */
   semillaMc: number;
   /**
@@ -154,6 +163,7 @@ export const SUPUESTOS_POR_DEFECTO: Supuestos = {
   correlacionPrecioTrm: 0,
   semillaMc: 20260911,
   desviacionBaseFraccion: 0.033,
+  tasaCop: 0.095,
 };
 
 /**
@@ -222,6 +232,22 @@ export interface Estrategia {
   tramos?: number;
   /** Costo cierto y anticipado de montar la estrategia, en USD. */
   costoInicialUsd: number;
+  /**
+   * Cobertura cambiaria montada encima, si la hay.
+   *
+   * Va aquí y no como una estrategia aparte porque es ORTOGONAL a la
+   * cobertura de precio: son dos decisiones distintas sobre el mismo
+   * lote, y listarlas juntas obligaría a comparar 36 filas en vez de 9.
+   *
+   * Al vivir en la estrategia, la recoge `evaluarEnEscenario`, y con ella
+   * la matriz, el Monte Carlo y la curva de payoff sin tocar nada más.
+   */
+  coberturaFx?: {
+    /** Dólares vendidos a plazo. */
+    notionalUsd: number;
+    /** Tasa pactada, COP/USD. */
+    tasaForward: number;
+  };
 }
 
 /** Descomposición del resultado de una estrategia en un escenario. */

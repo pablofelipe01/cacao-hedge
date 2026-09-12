@@ -20,6 +20,7 @@
 
 import { CC_TONELADAS_POR_CONTRATO } from "./constantes";
 import { dimensionarCobertura, type AlternativaCobertura } from "./contratos";
+import { resultadoForwardCop } from "./forward-fx";
 import { costoAdquisicionCop, diferencialEnEscenarioUsdTm, precioFisicoUsdTm, precioVentaPactadoUsdTm, toneladasExpuestasAlPrecio } from "./fx";
 import {
   payoffOpcion,
@@ -191,7 +192,16 @@ export function evaluarEnEscenario(
 
   // Lo que ocurre en el embarque se convierte a la TRM del escenario;
   // las primas ya se pagaron hoy, a la TRM vigente.
-  const ingresoNetoCop = margenUsd * escenario.trm - primas * mercado.trm;
+  //
+  // El forward cambiario se suma aparte y en pesos: por los dólares
+  // vendidos a plazo se recibe la tasa pactada en vez de la del día, y la
+  // diferencia es lo que aporta —o cuesta— la cobertura.
+  const fx = estrategia.coberturaFx;
+  const resultadoFxCop = fx
+    ? resultadoForwardCop(fx.notionalUsd, fx.tasaForward, escenario.trm)
+    : 0;
+
+  const ingresoNetoCop = margenUsd * escenario.trm - primas * mercado.trm + resultadoFxCop;
   const utilidadCop = ingresoNetoCop - costoLoteCop;
 
   return {
