@@ -160,3 +160,26 @@ describe("red de seguridad del sentido", () => {
     ).toThrow(/Incoherencia en el sentido/);
   });
 });
+
+describe("las toneladas no pueden leerse como miles", () => {
+  it("no fuerza decimales en un número redondo", () => {
+    const t = textoOrdenBroker({
+      ...BASE,
+      estrategia: futuros("larga"),
+      operacion: "venta_sin_comprar",
+    });
+    // «40,000 TM» lo lee una mesa como cuarenta mil toneladas.
+    expect(t).toContain("venta cerrada de 40 TM");
+    expect(t).not.toContain("40,000");
+  });
+
+  it("conserva los decimales que sí existen", () => {
+    const t = textoOrdenBroker({
+      ...BASE,
+      toneladas: 15.275,
+      estrategia: futuros("corta"),
+      operacion: "inventario_sin_vender",
+    });
+    expect(t).toContain("tengo 15,28 TM de cacao en bodega");
+  });
+});

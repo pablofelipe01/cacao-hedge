@@ -52,6 +52,18 @@ function numero(x: number, decimales = 0): string {
 }
 
 /**
+ * Toneladas para un mensaje que leerá una mesa de operaciones.
+ *
+ * Nunca fuerza decimales. Con `minimumFractionDigits: 3`, 40 toneladas se
+ * escribían «40,000 TM», y un ejecutivo acostumbrado a la convención
+ * inglesa lee ahí cuarenta mil. En un texto que se convierte en orden esa
+ * ambigüedad no es un detalle de formato.
+ */
+function toneladas(x: number): string {
+  return x.toLocaleString("es-CO", { maximumFractionDigits: 2 });
+}
+
+/**
  * Traduce un símbolo tipo "CCZ26" a "diciembre de 2026 (CCZ26)".
  *
  * Si no reconoce el formato devuelve el símbolo tal cual: es preferible
@@ -114,8 +126,8 @@ export function textoOrdenBroker(datos: DatosOrden): string {
   const toneladasCubiertas = estrategia.contratos * CC_TONELADAS_POR_CONTRATO;
 
   const contexto = compra
-    ? `Es una cobertura de compra: tengo una venta cerrada de ${numero(datos.toneladas, 3)} TM pendiente de abastecer y quiero fijar el costo.`
-    : `Es una cobertura de venta: tengo ${numero(datos.toneladas, 3)} TM de cacao en bodega y quiero fijar el precio.`;
+    ? `Es una cobertura de compra: tengo una venta cerrada de ${toneladas(datos.toneladas)} TM pendiente de abastecer y quiero fijar el costo.`
+    : `Es una cobertura de venta: tengo ${toneladas(datos.toneladas)} TM de cacao en bodega y quiero fijar el precio.`;
 
   const lineas = [
     "Hola, buen día.",
