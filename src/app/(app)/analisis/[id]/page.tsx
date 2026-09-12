@@ -271,6 +271,7 @@ export default async function PaginaResultados({ params }: PageProps<"/analisis/
         simbolo={mercado.procedencia?.cacao.simbolo ?? "CC"}
         operacion={resultados.operacion ?? "inventario_sin_vender"}
         toneladas={entradas.toneladas}
+        fechaEmbarque={entradas.fechaEmbarque}
       />
 
       {/* --- Dimensionamiento -------------------------------------------- */}

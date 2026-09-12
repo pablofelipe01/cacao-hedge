@@ -18,6 +18,7 @@ interface Props {
   simbolo: string;
   operacion: TipoOperacion;
   toneladas: number;
+  fechaEmbarque?: string;
 }
 
 /**
@@ -52,6 +53,7 @@ export function SelectorEstrategia({
   simbolo,
   operacion,
   toneladas,
+  fechaEmbarque,
 }: Props) {
   const [id, setId] = useState(idInicial);
 
@@ -125,6 +127,7 @@ export function SelectorEstrategia({
           futuroReferenciaUsdTm={futuroActual}
           operacion={operacion}
           toneladas={toneladas}
+          fechaEmbarque={fechaEmbarque}
         />
 
         {activa.margen ? (

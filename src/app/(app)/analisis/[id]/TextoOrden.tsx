@@ -6,6 +6,7 @@ import { CLASES_INPUT, Campo } from "@/components/Campo";
 import {
   admiteTextoDeOrden,
   textoOrdenBroker,
+  usaOpciones,
   type VigenciaOrden,
 } from "@/lib/engine/orden";
 import type { EvaluacionEstrategia } from "@/lib/engine/index";
@@ -17,6 +18,8 @@ interface Props {
   futuroReferenciaUsdTm: number;
   operacion: TipoOperacion;
   toneladas: number;
+  /** Fecha de embarque o entrega, aaaa-mm-dd. */
+  fechaEmbarque?: string;
 }
 
 /** Lee un número escrito a la colombiana; vacío o basura devuelve null. */
@@ -44,6 +47,7 @@ export function TextoOrden({
   futuroReferenciaUsdTm,
   operacion,
   toneladas,
+  fechaEmbarque,
 }: Props) {
   const { estrategia } = evaluacion.resumen;
 
@@ -54,6 +58,7 @@ export function TextoOrden({
   const [copiado, setCopiado] = useState(false);
 
   const compra = estrategia.sentido === "larga";
+  const conOpciones = usaOpciones(estrategia);
 
   const texto = useMemo(() => {
     if (!admiteTextoDeOrden(estrategia)) return null;
@@ -63,9 +68,11 @@ export function TextoOrden({
       futuroReferenciaUsdTm,
       operacion,
       toneladas,
+      fechaEmbarque,
       cuenta,
-      precioLimiteUsdTm: leer(limite),
-      precioStopUsdTm: leer(stop),
+      precioLimiteUsdTm: conOpciones ? null : leer(limite),
+      primaMaximaUsdTm: conOpciones ? leer(limite) : null,
+      precioStopUsdTm: conOpciones ? null : leer(stop),
       vigencia,
       disparadorMargenUsdTm: evaluacion.margen?.precioDisparadorUsdTm ?? null,
     });
@@ -75,6 +82,8 @@ export function TextoOrden({
     futuroReferenciaUsdTm,
     operacion,
     toneladas,
+    fechaEmbarque,
+    conOpciones,
     cuenta,
     limite,
     stop,
@@ -87,9 +96,8 @@ export function TextoOrden({
       <div className="rounded-lg border border-borde bg-superficie p-4">
         <h3 className="text-sm font-semibold">Texto para el bróker</h3>
         <p className="mt-1 text-xs leading-relaxed text-texto-suave">
-          {estrategia.tipo === "sin_cobertura"
-            ? "No cubrirse no requiere ninguna orden."
-            : "Esta estrategia usa opciones, que se negocian con strike y prima: esa orden se acuerda hablando con la mesa, no con un texto fijo. El generador solo cubre futuros."}
+          No cubrirse no requiere ninguna orden. Escoja otra estrategia arriba para
+          obtener el texto.
         </p>
       </div>
     );
@@ -131,21 +139,28 @@ export function TextoOrden({
 
         <Campo
           id="limite"
-          etiqueta="Precio límite (USD/TM)"
-          ayuda={`Vacío usa el futuro de referencia del análisis, ${futuroReferenciaUsdTm.toLocaleString("es-CO", { maximumFractionDigits: 0 })}.`}
+          etiqueta={conOpciones ? "Prima máxima (USD/TM)" : "Precio límite (USD/TM)"}
+          ayuda={
+            conOpciones
+              ? "Lo máximo que acepta pagar de prima. Vacío deja que la mesa cotice sin techo."
+              : `Vacío usa el futuro de referencia del análisis, ${futuroReferenciaUsdTm.toLocaleString("es-CO", { maximumFractionDigits: 0 })}.`
+          }
         >
           <input
             id="limite"
             inputMode="text"
             value={limite}
             onChange={(e) => setLimite(e.target.value)}
-            placeholder={futuroReferenciaUsdTm.toLocaleString("es-CO", {
-              maximumFractionDigits: 0,
-            })}
+            placeholder={
+              conOpciones
+                ? "sin techo de prima"
+                : futuroReferenciaUsdTm.toLocaleString("es-CO", { maximumFractionDigits: 0 })
+            }
             className={CLASES_INPUT}
           />
         </Campo>
 
+        {conOpciones ? null : (
         <Campo
           id="stop"
           etiqueta="Stop (USD/TM) — opcional"
@@ -160,6 +175,7 @@ export function TextoOrden({
             className={CLASES_INPUT}
           />
         </Campo>
+        )}
 
         <Campo id="vigencia" etiqueta="Vigencia">
           <select
@@ -188,8 +204,8 @@ export function TextoOrden({
             {copiado ? "Copiado ✓" : "Copiar texto"}
           </button>
           <span className="text-xs text-texto-suave">
-            {compra ? "Compra" : "Venta"} de {estrategia.contratos} contrato
-            {estrategia.contratos === 1 ? "" : "s"} CC · {estrategia.toneladasCubiertas} TM
+            {estrategia.nombre} · {estrategia.contratos} contrato
+            {estrategia.contratos === 1 ? "" : "s"} · {estrategia.toneladasCubiertas} TM
           </span>
         </div>
       </div>
