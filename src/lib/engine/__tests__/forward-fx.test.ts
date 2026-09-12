@@ -51,6 +51,18 @@ describe("tasa forward por paridad de tasas", () => {
   });
 });
 
+describe("construcción de las coberturas", () => {
+  it("reparte el flujo en los ratios pedidos, con una sola tasa forward", () => {
+    const cs = construirCoberturasFx(94873, 3101, 0.095, 0.042, 0.25);
+    expect(cs.map((c) => c.ratio)).toEqual([0, 0.5, 0.75, 1]);
+    expect(cs[1].notionalUsd).toBeCloseTo(47436.5, 1);
+    expect(cs[3].notionalUsd).toBe(94873);
+    // La tasa se pacta una vez: no cambia con cuánto se cubra.
+    expect(new Set(cs.map((c) => c.tasaForward)).size).toBe(1);
+    expect(cs[0].puntos).toBeCloseTo(39, 0);
+  });
+});
+
 describe("resultado del forward de venta", () => {
   it("gana cuando el peso se aprecia, que es cuando el físico pierde", () => {
     // Pactó 3.140 y la TRM terminó en 2.900: recibe 240 pesos de más por dólar.
