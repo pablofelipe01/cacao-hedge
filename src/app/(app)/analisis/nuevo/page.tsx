@@ -1,7 +1,8 @@
 import Link from "next/link";
 
 import { Disclaimer } from "@/components/Disclaimer";
-import { crearClienteServidor } from "@/lib/supabase/server";
+import { descuentoVigente } from "@/lib/data/descuento-productor";
+import { obtenerUsuario, crearClienteServidor } from "@/lib/supabase/server";
 import { seriesDisponibles } from "@/lib/data/cache";
 import { FormularioAnalisis } from "./FormularioAnalisis";
 
@@ -19,8 +20,9 @@ export default async function PaginaNuevoAnalisis({
   const loteId = typeof params.lote === "string" ? params.lote : null;
 
   const supabase = await crearClienteServidor();
+  const usuario = await obtenerUsuario();
 
-  const [{ data: lotes }, series, { data: bodega }] = await Promise.all([
+  const [{ data: lotes }, series, { data: bodega }, descuento] = await Promise.all([
     supabase
       .from("inventarios")
       .select(
@@ -32,6 +34,8 @@ export default async function PaginaNuevoAnalisis({
     supabase
       .from("inventario_bodega")
       .select("cantidad_disponible_kg, valor_compra_cop_kg"),
+    // El descuento medido contra Nueva York, para no pedirlo de memoria.
+    usuario ? descuentoVigente(supabase, usuario.id) : Promise.resolve(null),
   ]);
 
   // Lo que de verdad hay en bodega, según la hoja operativa.
@@ -80,6 +84,18 @@ export default async function PaginaNuevoAnalisis({
           costoCopKg: costoPonderado,
           kgConCostoPorcentaje: bodegaKg > 0 ? kgConCosto / bodegaKg : 0,
         }}
+        descuento={
+          descuento
+            ? {
+                actualPorcentaje: descuento.resumen.actual * 100,
+                medianaPorcentaje: descuento.resumen.mediana * 100,
+                p5Porcentaje: descuento.resumen.p5 * 100,
+                p95Porcentaje: descuento.resumen.p95 * 100,
+                fecha: descuento.resumen.fechaActual,
+                dias: descuento.resumen.dias,
+              }
+            : null
+        }
         desdeUrl={{
           toneladas: typeof params.toneladas === "string" ? params.toneladas : null,
           costoCopKg: typeof params.costo === "string" ? params.costo : null,

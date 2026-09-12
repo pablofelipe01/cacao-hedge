@@ -28,12 +28,24 @@ interface Bodega {
   kgConCostoPorcentaje: number;
 }
 
+/** Descuento medido contra Nueva York, en puntos porcentuales. */
+interface Descuento {
+  actualPorcentaje: number;
+  medianaPorcentaje: number;
+  p5Porcentaje: number;
+  p95Porcentaje: number;
+  fecha: string;
+  dias: number;
+}
+
 interface Props {
   lotes: Lote[];
   loteInicial: string | null;
   series: SerieDisponible[];
   bodega: Bodega;
   desdeUrl: { toneladas: string | null; costoCopKg: string | null };
+  /** null cuando no hay hoja de precios sincronizada. */
+  descuento: Descuento | null;
 }
 
 const INICIAL: EstadoFormulario = {};
@@ -155,7 +167,14 @@ function desdeLote(lote: Lote | undefined): Campos {
   };
 }
 
-export function FormularioAnalisis({ lotes, loteInicial, series, bodega, desdeUrl }: Props) {
+export function FormularioAnalisis({
+  lotes,
+  loteInicial,
+  series,
+  bodega,
+  desdeUrl,
+  descuento,
+}: Props) {
   const [estado, enviar, enviando] = useActionState(ejecutarAnalisis, INICIAL);
   const [situacion, setSituacion] = useState<Situacion>("tengo_cacao");
   const [campos, setCampos] = useState<Campos>(() => {
@@ -166,6 +185,17 @@ export function FormularioAnalisis({ lotes, loteInicial, series, bodega, desdeUr
       costoCopKg: desdeUrl.costoCopKg ?? base.costoCopKg,
     };
   });
+
+  /** Escribe el descuento medido en el campo, en modo porcentaje. */
+  const usarMedido = () => {
+    if (!descuento) return;
+    actualizar({
+      modoDiferencial: "porcentual",
+      diferencialUsdTm: descuento.actualPorcentaje.toLocaleString("es-CO", {
+        maximumFractionDigits: 1,
+      }),
+    });
+  };
 
   const errores = estado.errores ?? {};
   const t = TEXTOS[situacion];
@@ -364,6 +394,39 @@ export function FormularioAnalisis({ lotes, loteInicial, series, bodega, desdeUr
           Esto no está en la hoja de inventario: son decisiones suyas y hay que
           ponerlas a mano.
         </p>
+
+        {descuento ? (
+          <div className="flex flex-wrap items-center justify-between gap-3 rounded-md border border-borde bg-fondo p-3">
+            <div>
+              <p className="text-sm">
+                Descuento medido:{" "}
+                <span className="tabular font-semibold">
+                  {descuento.actualPorcentaje.toLocaleString("es-CO", {
+                    maximumFractionDigits: 1,
+                  })}{" "}
+                  %
+                </span>{" "}
+                <span className="text-texto-suave">contra Nueva York</span>
+              </p>
+              <p className="mt-0.5 text-xs text-texto-suave">
+                Al {descuento.fecha}, sobre {descuento.dias} días. Mediana{" "}
+                {descuento.medianaPorcentaje.toLocaleString("es-CO", {
+                  maximumFractionDigits: 1,
+                })}{" "}
+                %, rango habitual{" "}
+                {descuento.p5Porcentaje.toLocaleString("es-CO", { maximumFractionDigits: 1 })} a{" "}
+                {descuento.p95Porcentaje.toLocaleString("es-CO", { maximumFractionDigits: 1 })} %.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={usarMedido}
+              className="rounded-md border border-cacao px-3 py-1.5 text-sm text-cacao transition hover:bg-cacao hover:text-white"
+            >
+              Usar el medido
+            </button>
+          </div>
+        ) : null}
 
         <div className="grid gap-5 sm:grid-cols-2">
           <Campo

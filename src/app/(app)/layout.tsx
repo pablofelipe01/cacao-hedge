@@ -20,6 +20,9 @@ export default async function LayoutApp({ children }: LayoutProps<"/">) {
             <Link href="/bodega" className="text-texto-suave hover:text-texto">
               Bodega
             </Link>
+            <Link href="/precios" className="text-texto-suave hover:text-texto">
+              Precios
+            </Link>
             <Link href="/importar" className="text-texto-suave hover:text-texto">
               Importar
             </Link>

@@ -16,7 +16,7 @@ import type { Database, FuentePrecio, TipoSerie } from "@/types/database";
 import { ErrorDatos } from "./errores";
 import type { Barra, SerieHistorica } from "./tipos";
 
-type ClienteSupabase = SupabaseClient<Database>;
+export type ClienteSupabase = SupabaseClient<Database>;
 
 /** Tamaño de lote para el upsert: evita payloads enormes en una sola llamada. */
 const TAMANIO_LOTE = 500;

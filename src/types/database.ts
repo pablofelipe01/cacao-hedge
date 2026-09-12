@@ -23,6 +23,18 @@ export type FuentePrecio =
   | "manual";
 export type EstadoAnalisis = "pendiente" | "calculado" | "con_informe" | "error";
 
+/**
+ * Comprador y calidad en la hoja de precios al productor.
+ *
+ * El bajo cadmio se paga por encima del alto, y las dos plantas de
+ * Nacional de Chocolates publican precios distintos.
+ */
+export type CompradorProductor =
+  | "luker_bajo_cadmio"
+  | "luker_alto_cadmio"
+  | "nacional_bogota"
+  | "nacional_ibague";
+
 export type Database = {
   public: {
     Tables: {
@@ -92,6 +104,28 @@ export type Database = {
           sincronizado_en?: string;
         };
         Update: Partial<Database["public"]["Tables"]["inventario_bodega"]["Insert"]>;
+        Relationships: [];
+      };
+      precios_productor: {
+        Row: {
+          id: string;
+          user_id: string;
+          hoja_id: string;
+          fecha: string;
+          comprador: CompradorProductor;
+          precio_cop_kg: number;
+          sincronizado_en: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          hoja_id: string;
+          fecha: string;
+          comprador: CompradorProductor;
+          precio_cop_kg: number;
+          sincronizado_en?: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["precios_productor"]["Insert"]>;
         Relationships: [];
       };
       precios: {
