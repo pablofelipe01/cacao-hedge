@@ -54,6 +54,8 @@ export interface PreciosHoja {
   ultimaFecha: string | null;
   /** Columnas cuya cabecera no se pudo interpretar como fecha. */
   fechasIlegibles: number;
+  /** Fechas que aparecían en más de una columna. */
+  fechasDuplicadas: string[];
   advertencias: string[];
 }
 
@@ -146,6 +148,15 @@ export function interpretarHojaPrecios(csv: string): PreciosHoja {
   const precios: PrecioProductor[] = [];
   let fechasIlegibles = 0;
 
+  // La hoja registra un cambio de precio intrasemanal añadiendo otra
+  // columna con la MISMA fecha, y a veces con otro precio. Hay que quedarse
+  // con uno: se conserva el de más a la izquierda, que es el apunte más
+  // reciente porque las columnas van de hoy hacia atrás. Y se avisa, porque
+  // elegir en silencio entre dos precios distintos del mismo día sería
+  // tomar una decisión que no nos corresponde.
+  const vistos = new Set<string>();
+  const fechasDuplicadas = new Set<string>();
+
   for (let col = 1; col < cabecera.length; col++) {
     const fecha = fechaDeCabecera(cabecera[col]);
     if (!fecha) {
@@ -155,7 +166,15 @@ export function interpretarHojaPrecios(csv: string): PreciosHoja {
 
     for (const { indice, comprador } of FILAS) {
       const precio = precioDeCelda(filas[indice]?.[col]);
-      if (precio != null) precios.push({ fecha, comprador, precioCopKg: precio });
+      if (precio == null) continue;
+
+      const clave = `${fecha}|${comprador}`;
+      if (vistos.has(clave)) {
+        fechasDuplicadas.add(fecha);
+        continue;
+      }
+      vistos.add(clave);
+      precios.push({ fecha, comprador, precioCopKg: precio });
     }
   }
 
@@ -173,12 +192,20 @@ export function interpretarHojaPrecios(csv: string): PreciosHoja {
     );
   }
 
+  if (fechasDuplicadas.size > 0) {
+    const lista = [...fechasDuplicadas].sort().reverse().slice(0, 5).join(", ");
+    advertencias.push(
+      `${fechasDuplicadas.size} fecha(s) aparecen en más de una columna y se conservó la primera: ${lista}${fechasDuplicadas.size > 5 ? "…" : ""}. Si esas columnas traen precios distintos, revise cuál es el bueno en la hoja.`,
+    );
+  }
+
   const fechas = [...new Set(precios.map((p) => p.fecha))].sort();
 
   return {
     precios,
     ultimaFecha: fechas[fechas.length - 1] ?? null,
     fechasIlegibles,
+    fechasDuplicadas: [...fechasDuplicadas].sort(),
     advertencias,
   };
 }

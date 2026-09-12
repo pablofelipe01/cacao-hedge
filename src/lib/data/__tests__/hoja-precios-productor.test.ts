@@ -126,3 +126,41 @@ describe("descuento contra Nueva York", () => {
     expect(resumirDescuento([], "nacional_ibague")).toBeNull();
   });
 });
+
+describe("fechas repetidas en la hoja", () => {
+  /**
+   * La hoja registra un cambio de precio intrasemanal añadiendo otra
+   * columna con la misma fecha, a veces con otro precio. Salió en
+   * producción: el upsert reventaba con «ON CONFLICT DO UPDATE command
+   * cannot affect row a second time», porque el lote traía la misma
+   * clave dos veces.
+   */
+  const conRepetida = () => {
+    const filas = Array.from({ length: 13 }, () => ["", "", ""]);
+    filas[8] = ["FECHA", "30-jul-26", "30-jul-26"];
+    filas[9] = ["Bajo Cadmio", "$13.850", "$13.500"];
+    filas[10] = ["Alto Cadmio", "$13.550", "$13.200"];
+    filas[11] = ["Más $500 premium", "$13.800", "$13.400"];
+    filas[12] = ["Más $500 premium", "$13.750", "$13.350"];
+    return filas.map((f) => f.join(",")).join("\n");
+  };
+
+  it("deja una sola fila por fecha y comprador", () => {
+    const r = interpretarHojaPrecios(conRepetida());
+    const luker = r.precios.filter((p) => p.comprador === "luker_bajo_cadmio");
+    expect(luker).toHaveLength(1);
+  });
+
+  it("conserva la columna de más a la izquierda, que es el apunte reciente", () => {
+    const r = interpretarHojaPrecios(conRepetida());
+    expect(
+      r.precios.find((p) => p.comprador === "luker_bajo_cadmio")?.precioCopKg,
+    ).toBe(13850);
+  });
+
+  it("avisa en vez de elegir en silencio entre dos precios del mismo día", () => {
+    const r = interpretarHojaPrecios(conRepetida());
+    expect(r.fechasDuplicadas).toEqual(["2026-07-30"]);
+    expect(r.advertencias.join(" ")).toMatch(/más de una columna/);
+  });
+});

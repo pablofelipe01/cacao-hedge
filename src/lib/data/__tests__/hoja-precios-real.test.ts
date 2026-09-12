@@ -30,6 +30,15 @@ describe.skipIf(!existsSync(CSV))("hoja real de precios", () => {
     }
   });
 
+  it("no deja claves repetidas, que es lo que reventó el upsert", () => {
+    // Producción falló con «ON CONFLICT DO UPDATE command cannot affect
+    // row a second time»: la hoja real trae cuatro fechas duplicadas.
+    const r = interpretarHojaPrecios(readFileSync(CSV, "utf8"));
+    const claves = r.precios.map((p) => `${p.fecha}|${p.comprador}`);
+    expect(new Set(claves).size).toBe(claves.length);
+    expect(r.fechasDuplicadas.length).toBeGreaterThan(0);
+  });
+
   it("sin bolsa ni TRM no inventa descuentos", () => {
     const r = interpretarHojaPrecios(readFileSync(CSV, "utf8"));
     expect(calcularDescuentos(r.precios, new Map(), new Map())).toEqual([]);
