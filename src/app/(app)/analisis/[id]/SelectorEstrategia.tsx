@@ -6,12 +6,18 @@ import { HeatmapEscenarios } from "@/components/charts/HeatmapEscenarios";
 import { HistogramaMonteCarlo } from "@/components/charts/HistogramaMonteCarlo";
 import { PayoffEstrategias, type SeriePayoff } from "@/components/charts/PayoffEstrategias";
 import { cop, usdTm } from "@/lib/formato";
+import { TextoOrden } from "./TextoOrden";
 import type { EvaluacionEstrategia } from "@/lib/engine/index";
+import type { TipoOperacion } from "@/lib/engine/tipos";
 
 interface Props {
   evaluaciones: EvaluacionEstrategia[];
   idInicial: string;
   futuroActual: number;
+  /** Serie usada en el análisis, para nombrar el vencimiento en la orden. */
+  simbolo: string;
+  operacion: TipoOperacion;
+  toneladas: number;
 }
 
 /**
@@ -39,7 +45,14 @@ function curvaDesdeEscenarios(evaluacion: EvaluacionEstrategia): SeriePayoff["pu
     .sort((a, b) => a.futuro - b.futuro);
 }
 
-export function SelectorEstrategia({ evaluaciones, idInicial, futuroActual }: Props) {
+export function SelectorEstrategia({
+  evaluaciones,
+  idInicial,
+  futuroActual,
+  simbolo,
+  operacion,
+  toneladas,
+}: Props) {
   const [id, setId] = useState(idInicial);
 
   const activa =
@@ -105,6 +118,14 @@ export function SelectorEstrategia({ evaluaciones, idInicial, futuroActual }: Pr
             nombreEstrategia={activa.resumen.estrategia.nombre}
           />
         </div>
+
+        <TextoOrden
+          evaluacion={activa}
+          simbolo={simbolo}
+          futuroReferenciaUsdTm={futuroActual}
+          operacion={operacion}
+          toneladas={toneladas}
+        />
 
         {activa.margen ? (
           <div className="rounded-lg border border-borde bg-superficie p-4">

@@ -268,6 +268,9 @@ export default async function PaginaResultados({ params }: PageProps<"/analisis/
         evaluaciones={evaluaciones}
         idInicial={recomendacion.idEstrategia}
         futuroActual={mercado.futuroUsdTm}
+        simbolo={mercado.procedencia?.cacao.simbolo ?? "CC"}
+        operacion={resultados.operacion ?? "inventario_sin_vender"}
+        toneladas={entradas.toneladas}
       />
 
       {/* --- Dimensionamiento -------------------------------------------- */}

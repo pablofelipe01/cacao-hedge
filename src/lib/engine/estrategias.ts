@@ -19,7 +19,7 @@
  */
 
 import { CC_TONELADAS_POR_CONTRATO } from "./constantes";
-import { dimensionarCobertura } from "./contratos";
+import { dimensionarCobertura, type AlternativaCobertura } from "./contratos";
 import { costoAdquisicionCop, diferencialEnEscenarioUsdTm, precioFisicoUsdTm, precioVentaPactadoUsdTm, toneladasExpuestasAlPrecio } from "./fx";
 import {
   payoffOpcion,
@@ -323,17 +323,47 @@ export function construirEstrategias(
   });
 
   // --- Futuros a distintos ratios ------------------------------------
+  //
+  // Ratios distintos pueden caer en el mismo número de contratos: con 30,6
+  // TM expuestas, el 50 % y el 75 % redondean los dos a 2. No son dos
+  // alternativas parecidas, son la MISMA posición, y listarlas dos veces
+  // hace creer que hay una decisión que tomar donde no la hay. Se agrupan
+  // por contratos y se conserva el ratio más alto de cada grupo, que es el
+  // que mejor describe lo que esa posición llega a cubrir.
   const verboFuturos = esInventario ? "Venta" : "Compra";
+  const porContratos = new Map<number, { ratios: number[]; alt: AlternativaCobertura }>();
+
   for (const ratio of RATIOS_FUTUROS) {
     // Sobre las toneladas EXPUESTAS, no sobre las físicas: con diferencial
     // porcentual no son la misma cosa, y cubrir las físicas sobre-cubre.
     const alt = dimensionarCobertura(toneladasExpuestasAlPrecio(lote), ratio).recomendada;
+    const grupo = porContratos.get(alt.contratos);
+    if (grupo) {
+      grupo.ratios.push(ratio);
+      grupo.alt = alt;
+    } else {
+      porContratos.set(alt.contratos, { ratios: [ratio], alt });
+    }
+  }
+
+  for (const { ratios, alt } of porContratos.values()) {
+    const ratio = ratios[ratios.length - 1];
+    const etiqueta =
+      ratios.length === 1
+        ? etiquetaPorcentaje(ratio)
+        : `${etiquetaPorcentaje(ratios[0]).replace(" %", "")}–${etiquetaPorcentaje(ratio)}`;
+
     estrategias.push({
       id: `futuros_${Math.round(ratio * 100)}`,
       tipo: "futuros",
       sentido,
-      nombre: `${verboFuturos} de futuros ${etiquetaPorcentaje(ratio)}`,
-      descripcion: `${verboFuturos} de ${alt.contratos} contrato(s) CC a ${numero(mercado.futuroUsdTm)} USD/TM. Fija el precio del futuro, no la base. ${alt.exposicionResidual}`,
+      nombre: `${verboFuturos} de futuros ${etiqueta}`,
+      descripcion:
+        `${verboFuturos} de ${alt.contratos} contrato(s) CC a ${numero(mercado.futuroUsdTm)} USD/TM. ` +
+        `Fija el precio del futuro, no la base. ${alt.exposicionResidual}` +
+        (ratios.length > 1
+          ? ` Cubrir el ${etiquetaPorcentaje(ratios[0])} o el ${etiquetaPorcentaje(ratio)} da la misma posición: un contrato no se puede partir.`
+          : ""),
       ratioCobertura: ratio,
       contratos: alt.contratos,
       toneladasCubiertas: alt.toneladasCubiertas,
