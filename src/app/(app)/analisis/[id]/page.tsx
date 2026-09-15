@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { Disclaimer } from "@/components/Disclaimer";
+import { Explicacion } from "@/components/Explicacion";
 import { TablaEstrategias } from "@/components/TablaEstrategias";
 import { TarjetaMetrica } from "@/components/TarjetaMetrica";
 import { InformeNarrativo } from "./InformeNarrativo";
@@ -147,18 +148,21 @@ export default async function PaginaResultados({ params }: PageProps<"/analisis/
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           <TarjetaMetrica
             etiqueta="Futuro CC de referencia"
+            explica="futuro"
             valor={usdTm(mercado.futuroUsdTm)}
             unidad="USD/TM"
             detalle={`al ${fechaLegible(mercado.fechaDatos)} · vol. ${porcentaje(mercado.volAnualizada)}`}
           />
           <TarjetaMetrica
             etiqueta="TRM"
+            explica="trm"
             valor={usdTm(mercado.trm, 2)}
             unidad="COP/USD"
             detalle={`vol. anualizada ${porcentaje(mercado.volTrmAnualizada)}`}
           />
           <TarjetaMetrica
             etiqueta={esInventario ? "Exposición nominal" : "Costo esperado de la compra"}
+            explica="exposicion"
             valor={cop(nominalUsd * mercado.trm)}
             unidad="COP"
             detalle={`${usdTm(nominalUsd)} USD ${
@@ -171,6 +175,7 @@ export default async function PaginaResultados({ params }: PageProps<"/analisis/
           />
           <TarjetaMetrica
             etiqueta={esInventario ? "Punto de equilibrio" : "Precio máximo de compra"}
+            explica="equilibrio"
             valor={usdTm(resultados.precioEquilibrioUsdTm)}
             unidad="USD/TM"
             detalle={
@@ -191,6 +196,7 @@ export default async function PaginaResultados({ params }: PageProps<"/analisis/
           <div className="grid gap-3 sm:grid-cols-3">
             <TarjetaMetrica
               etiqueta="Probabilidad de pérdida"
+            explica="probabilidadPerdida"
               valor={porcentaje(recomendada.monteCarlo.probabilidadPerdida)}
               tono={
                 recomendada.monteCarlo.probabilidadPerdida <
@@ -202,6 +208,7 @@ export default async function PaginaResultados({ params }: PageProps<"/analisis/
             />
             <TarjetaMetrica
               etiqueta="Utilidad en el peor 5 %"
+            explica="percentil5"
               valor={cop(recomendada.monteCarlo.percentiles.p5)}
               unidad="COP"
               tono={recomendada.monteCarlo.percentiles.p5 < 0 ? "negativo" : "positivo"}
@@ -209,6 +216,7 @@ export default async function PaginaResultados({ params }: PageProps<"/analisis/
             />
             <TarjetaMetrica
               etiqueta={`VaR 95 % ${esInventario ? "al embarque" : "a la entrega"}`}
+              explica="var"
               valor={cop(recomendada.var.varCop)}
               unidad="COP"
               detalle={`sin cobertura: ${cop(sinCobertura.var.varCop)} COP`}
@@ -286,6 +294,7 @@ export default async function PaginaResultados({ params }: PageProps<"/analisis/
         <section aria-labelledby="cambiario" className="space-y-3">
           <h2 id="cambiario" className="text-sm font-semibold">
             El dólar: segunda decisión, aparte del precio
+            <Explicacion termino="forward" variante="signo" />
           </h2>
           <p className="max-w-prose text-sm leading-relaxed text-texto-suave">
             Cubrir el cacao no toca el riesgo cambiario. Esto es lo que pasaría si

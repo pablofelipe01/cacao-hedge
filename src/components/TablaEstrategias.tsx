@@ -1,3 +1,4 @@
+import { Explicacion } from "./Explicacion";
 import { cop, porcentaje, usdTm } from "@/lib/formato";
 import type { EvaluacionEstrategia } from "@/lib/engine/index";
 
@@ -23,20 +24,44 @@ export function TablaEstrategias({ evaluaciones, idRecomendada }: Props) {
         </caption>
         <thead>
           <tr className="border-b border-borde text-xs text-texto-suave">
-            <th scope="col" className="px-3 py-2 text-left font-medium">Estrategia</th>
-            <th scope="col" className="px-3 py-2 text-right font-medium">Contratos</th>
-            <th scope="col" className="px-3 py-2 text-right font-medium">Caso base</th>
-            <th scope="col" className="px-3 py-2 text-right font-medium">Peor caso</th>
-            <th scope="col" className="px-3 py-2 text-right font-medium">Mejor caso</th>
-            <th scope="col" className="px-3 py-2 text-right font-medium">Percentil 5</th>
-            <th scope="col" className="px-3 py-2 text-right font-medium">P(pérdida)</th>
-            <th scope="col" className="px-3 py-2 text-right font-medium">VaR 95 %</th>
-            <th scope="col" className="px-3 py-2 text-right font-medium">Costo inicial</th>
+            <th scope="col" className="px-3 py-2 text-left font-medium">
+              Estrategia
+            </th>
+            <th scope="col" className="px-3 py-2 text-right font-medium">
+              Contratos
+              <Explicacion termino="contratos" variante="signo" />
+            </th>
+            <th scope="col" className="px-3 py-2 text-right font-medium">
+              Caso base
+              <Explicacion termino="casoBase" variante="signo" />
+            </th>
+            <th scope="col" className="px-3 py-2 text-right font-medium">
+              Peor caso
+              <Explicacion termino="extremos" variante="signo" />
+            </th>
+            <th scope="col" className="px-3 py-2 text-right font-medium">
+              Mejor caso
+            </th>
+            <th scope="col" className="px-3 py-2 text-right font-medium">
+              Percentil 5<Explicacion termino="percentil5" variante="signo" />
+            </th>
+            <th scope="col" className="px-3 py-2 text-right font-medium">
+              P(pérdida)
+              <Explicacion termino="probabilidadPerdida" variante="signo" />
+            </th>
+            <th scope="col" className="px-3 py-2 text-right font-medium">
+              VaR 95 %<Explicacion termino="var" variante="signo" />
+            </th>
+            <th scope="col" className="px-3 py-2 text-right font-medium">
+              Costo inicial
+              <Explicacion termino="costoInicial" variante="signo" />
+            </th>
           </tr>
         </thead>
         <tbody>
           {evaluaciones.map((evaluacion) => {
-            const { estrategia, peorCaso, mejorCaso, casoBase } = evaluacion.resumen;
+            const { estrategia, peorCaso, mejorCaso, casoBase } =
+              evaluacion.resumen;
             const esRecomendada = estrategia.id === idRecomendada;
 
             return (
@@ -57,7 +82,9 @@ export function TablaEstrategias({ evaluaciones, idRecomendada }: Props) {
                 <td className="tabular px-3 py-2 text-right">
                   {estrategia.contratos || "—"}
                 </td>
-                <td className="tabular px-3 py-2 text-right">{cop(casoBase.utilidadCop)}</td>
+                <td className="tabular px-3 py-2 text-right">
+                  {cop(casoBase.utilidadCop)}
+                </td>
                 <td
                   className={`tabular px-3 py-2 text-right ${
                     peorCaso.utilidadCop < 0 ? "text-negativo" : ""
@@ -65,10 +92,14 @@ export function TablaEstrategias({ evaluaciones, idRecomendada }: Props) {
                 >
                   {cop(peorCaso.utilidadCop)}
                 </td>
-                <td className="tabular px-3 py-2 text-right">{cop(mejorCaso.utilidadCop)}</td>
+                <td className="tabular px-3 py-2 text-right">
+                  {cop(mejorCaso.utilidadCop)}
+                </td>
                 <td
                   className={`tabular px-3 py-2 text-right ${
-                    evaluacion.monteCarlo.percentiles.p5 < 0 ? "text-negativo" : ""
+                    evaluacion.monteCarlo.percentiles.p5 < 0
+                      ? "text-negativo"
+                      : ""
                   }`}
                 >
                   {cop(evaluacion.monteCarlo.percentiles.p5)}
@@ -76,7 +107,9 @@ export function TablaEstrategias({ evaluaciones, idRecomendada }: Props) {
                 <td className="tabular px-3 py-2 text-right">
                   {porcentaje(evaluacion.monteCarlo.probabilidadPerdida)}
                 </td>
-                <td className="tabular px-3 py-2 text-right">{cop(evaluacion.var.varCop)}</td>
+                <td className="tabular px-3 py-2 text-right">
+                  {cop(evaluacion.var.varCop)}
+                </td>
                 <td className="tabular px-3 py-2 text-right">
                   {estrategia.costoInicialUsd === 0
                     ? "—"
@@ -88,9 +121,10 @@ export function TablaEstrategias({ evaluaciones, idRecomendada }: Props) {
         </tbody>
       </table>
       <p className="border-t border-borde px-3 py-2 text-xs text-texto-suave">
-        Cifras en pesos, abreviadas (M = millones). «Caso base» es el escenario sin
-        cambios; «peor» y «mejor» son los extremos de los 63 escenarios de la matriz.
-        El percentil 5 y la probabilidad de pérdida vienen de la simulación Monte Carlo.
+        Cifras en pesos, abreviadas (M = millones). «Caso base» es el escenario
+        sin cambios; «peor» y «mejor» son los extremos de los 63 escenarios de
+        la matriz. El percentil 5 y la probabilidad de pérdida vienen de la
+        simulación Monte Carlo.
       </p>
     </div>
   );
