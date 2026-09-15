@@ -114,9 +114,14 @@ export default async function PaginaResultados({ params }: PageProps<"/analisis/
       <header className="space-y-1">
         <div className="flex items-baseline justify-between gap-4">
           <h1 className="text-xl font-semibold tracking-tight">Análisis de cobertura</h1>
-          <Link href="/dashboard" className="text-sm text-texto-suave hover:text-texto">
-            ← Inventario
-          </Link>
+          <div className="flex items-baseline gap-4 text-sm">
+            <Link href="/guia/resultados" className="text-cacao hover:underline">
+              ¿Qué significa cada cifra?
+            </Link>
+            <Link href="/dashboard" className="text-texto-suave hover:text-texto">
+              ← Inventario
+            </Link>
+          </div>
         </div>
         <p className="text-sm text-texto-suave">
           {toneladas(entradas.toneladas)} TM{" "}

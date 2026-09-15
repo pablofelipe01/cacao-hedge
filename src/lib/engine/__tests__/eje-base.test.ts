@@ -90,3 +90,46 @@ describe("efecto sobre un análisis completo", () => {
     expect(p5De(medido, "futuros_100")).toBeLessThan(p5De(estrecho, "futuros_100"));
   });
 });
+
+describe("estrategias que no se pueden ejecutar", () => {
+  /**
+   * Salió mirando un análisis real de 10 TM con descuento del 23,5 %: la
+   * pantalla ofrecía «Compra de futuros 50 %» con cifras idénticas a no
+   * cubrirse, y recomendaba una escalonada en 4 tramos con 1 contrato.
+   */
+  const lote: Lote = {
+    toneladas: 10,
+    costoCopKg: 0,
+    diasAEmbarque: 14,
+    diferencialUsdTm: 0,
+    diferencialPorcentual: -0.235,
+    tipoOperacion: "venta_sin_comprar",
+    tipoContrato: "precio_fijo_usd",
+    precioVentaUsdTm: 6500,
+  };
+
+  it("no ofrece un ratio que redondea a cero contratos", () => {
+    // 10 TM × 0,765 × 50 % = 3,83 TM = 0,38 contratos -> 0.
+    const r = analizarCobertura(lote, MERCADO, SUPUESTOS_POR_DEFECTO);
+    const futuros = r.evaluaciones.filter((e) => e.resumen.estrategia.tipo === "futuros");
+    expect(futuros.every((e) => e.resumen.estrategia.contratos > 0)).toBe(true);
+    // Y no queda una fila gemela de «sin cobertura».
+    expect(futuros.some((e) => e.resumen.estrategia.id === "futuros_50")).toBe(false);
+  });
+
+  it("no ofrece una escalonada con menos contratos que tramos", () => {
+    // Un contrato no se parte en cuatro: el precio medio que calcula el
+    // motor sería inalcanzable, y el bróker no podría ejecutarla.
+    const r = analizarCobertura(lote, MERCADO, SUPUESTOS_POR_DEFECTO);
+    expect(r.evaluaciones.some((e) => e.resumen.estrategia.tipo === "escalonada")).toBe(false);
+    expect(r.recomendacion.idEstrategia).not.toMatch(/escalonada/);
+  });
+
+  it("sigue ofreciéndola cuando sí reparte", () => {
+    const grande = { ...lote, toneladas: 60 };
+    const r = analizarCobertura(grande, MERCADO, SUPUESTOS_POR_DEFECTO);
+    const esc = r.evaluaciones.find((e) => e.resumen.estrategia.tipo === "escalonada");
+    expect(esc).toBeDefined();
+    expect(esc!.resumen.estrategia.contratos).toBeGreaterThanOrEqual(4);
+  });
+});

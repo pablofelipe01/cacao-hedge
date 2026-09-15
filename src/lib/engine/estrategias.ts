@@ -21,7 +21,13 @@
 import { CC_TONELADAS_POR_CONTRATO } from "./constantes";
 import { dimensionarCobertura, type AlternativaCobertura } from "./contratos";
 import { resultadoForwardCop } from "./forward-fx";
-import { costoAdquisicionCop, diferencialEnEscenarioUsdTm, precioFisicoUsdTm, precioVentaPactadoUsdTm, toneladasExpuestasAlPrecio } from "./fx";
+import {
+  costoAdquisicionCop,
+  diferencialEnEscenarioUsdTm,
+  precioFisicoUsdTm,
+  precioVentaPactadoUsdTm,
+  toneladasExpuestasAlPrecio,
+} from "./fx";
 import {
   payoffOpcion,
   redondearStrike,
@@ -101,11 +107,15 @@ export function resultadoCoberturaUsd(
 
     // Pone piso al precio de venta.
     case "put_protector":
-      return payoffOpcion("put", F1, estrategia.strikePut!) * toneladasCubiertas;
+      return (
+        payoffOpcion("put", F1, estrategia.strikePut!) * toneladasCubiertas
+      );
 
     // Pone techo al precio de compra.
     case "call_protector":
-      return payoffOpcion("call", F1, estrategia.strikeCall!) * toneladasCubiertas;
+      return (
+        payoffOpcion("call", F1, estrategia.strikeCall!) * toneladasCubiertas
+      );
 
     // Collar: el piso del put se financia cediendo el techo del call.
     case "collar":
@@ -126,7 +136,11 @@ export function resultadoCoberturaUsd(
       );
 
     case "escalonada": {
-      const medio = precioMedioEscalonado(futuroInicial, F1, estrategia.tramos!);
+      const medio = precioMedioEscalonado(
+        futuroInicial,
+        F1,
+        estrategia.tramos!,
+      );
       return sentido === "corta"
         ? (medio - F1) * toneladasCubiertas
         : (F1 - medio) * toneladasCubiertas;
@@ -135,10 +149,15 @@ export function resultadoCoberturaUsd(
 }
 
 /** Comisiones de ida y vuelta de la estrategia, en USD. */
-export function comisionesUsd(estrategia: Estrategia, supuestos: Supuestos): number {
+export function comisionesUsd(
+  estrategia: Estrategia,
+  supuestos: Supuestos,
+): number {
   // Los collares son dos patas de opción; el resto, una sola posición.
   const patas =
-    estrategia.tipo === "collar" || estrategia.tipo === "collar_inverso" ? 2 : 1;
+    estrategia.tipo === "collar" || estrategia.tipo === "collar_inverso"
+      ? 2
+      : 1;
   return estrategia.contratos * supuestos.comisionUsdContrato * patas;
 }
 
@@ -184,11 +203,16 @@ export function evaluarEnEscenario(
     ? costoAdquisicionCop(lote.toneladas, lote.costoCopKg)
     : 0;
 
-  const coberturaUsd = resultadoCoberturaUsd(estrategia, mercado.futuroUsdTm, escenario);
+  const coberturaUsd = resultadoCoberturaUsd(
+    estrategia,
+    mercado.futuroUsdTm,
+    escenario,
+  );
   const comisiones = comisionesUsd(estrategia, supuestos);
   const primas = estrategia.costoInicialUsd;
 
-  const margenUsd = ingresoFisicoUsd - costoFisicoUsd + coberturaUsd - comisiones;
+  const margenUsd =
+    ingresoFisicoUsd - costoFisicoUsd + coberturaUsd - comisiones;
 
   // Lo que ocurre en el embarque se convierte a la TRM del escenario;
   // las primas ya se pagaron hoy, a la TRM vigente.
@@ -201,7 +225,8 @@ export function evaluarEnEscenario(
     ? resultadoForwardCop(fx.notionalUsd, fx.tasaForward, escenario.trm)
     : 0;
 
-  const ingresoNetoCop = margenUsd * escenario.trm - primas * mercado.trm + resultadoFxCop;
+  const ingresoNetoCop =
+    margenUsd * escenario.trm - primas * mercado.trm + resultadoFxCop;
   const utilidadCop = ingresoNetoCop - costoLoteCop;
 
   return {
@@ -247,7 +272,10 @@ export function resumirEstrategia(
 
   const casoBase =
     resultados.find(
-      (r) => r.escenario.ejes.precio === 0 && r.escenario.ejes.trm === 0 && r.escenario.ejes.base === 0,
+      (r) =>
+        r.escenario.ejes.precio === 0 &&
+        r.escenario.ejes.trm === 0 &&
+        r.escenario.ejes.base === 0,
     ) ?? resultados[0];
 
   return {
@@ -341,12 +369,18 @@ export function construirEstrategias(
   // por contratos y se conserva el ratio más alto de cada grupo, que es el
   // que mejor describe lo que esa posición llega a cubrir.
   const verboFuturos = esInventario ? "Venta" : "Compra";
-  const porContratos = new Map<number, { ratios: number[]; alt: AlternativaCobertura }>();
+  const porContratos = new Map<
+    number,
+    { ratios: number[]; alt: AlternativaCobertura }
+  >();
 
   for (const ratio of RATIOS_FUTUROS) {
     // Sobre las toneladas EXPUESTAS, no sobre las físicas: con diferencial
     // porcentual no son la misma cosa, y cubrir las físicas sobre-cubre.
-    const alt = dimensionarCobertura(toneladasExpuestasAlPrecio(lote), ratio).recomendada;
+    const alt = dimensionarCobertura(
+      toneladasExpuestasAlPrecio(lote),
+      ratio,
+    ).recomendada;
     const grupo = porContratos.get(alt.contratos);
     if (grupo) {
       grupo.ratios.push(ratio);
@@ -357,6 +391,12 @@ export function construirEstrategias(
   }
 
   for (const { ratios, alt } of porContratos.values()) {
+    // Cero contratos es exactamente «sin cobertura», que ya está en la
+    // lista. Mostrarlo como una alternativa aparte —con las mismas cifras
+    // y un guion en la columna de contratos— sugiere una decisión que no
+    // existe. Con 7,65 TM expuestas, cubrir el 50 % redondea a cero.
+    if (alt.contratos <= 0) continue;
+
     const ratio = ratios[ratios.length - 1];
     const etiqueta =
       ratios.length === 1
@@ -382,7 +422,10 @@ export function construirEstrategias(
     });
   }
 
-  const dimTotal = dimensionarCobertura(toneladasExpuestasAlPrecio(lote), 1).recomendada;
+  const dimTotal = dimensionarCobertura(
+    toneladasExpuestasAlPrecio(lote),
+    1,
+  ).recomendada;
   const contratosTotal = dimTotal.contratos;
   const toneladasTotal = dimTotal.toneladasCubiertas;
 
@@ -418,7 +461,10 @@ export function construirEstrategias(
     // --- Collar de costo cero ----------------------------------------
     const strikePut = redondearStrike(mercado.futuroUsdTm * 0.95);
     const parametrosPut = { ...baseOpcion, strike: strikePut };
-    const { strikeCall, primaNetaUsdTm } = strikeCollarCostoCero(parametrosPut, supuestos);
+    const { strikeCall, primaNetaUsdTm } = strikeCollarCostoCero(
+      parametrosPut,
+      supuestos,
+    );
 
     estrategias.push({
       id: "collar",
@@ -482,19 +528,26 @@ export function construirEstrategias(
   }
 
   // --- Fijación escalonada, en ambos sentidos ------------------------
-  estrategias.push({
-    id: `escalonada_${TRAMOS_POR_DEFECTO}`,
-    tipo: "escalonada",
-    sentido,
-    nombre: `Fijación escalonada en ${TRAMOS_POR_DEFECTO} tramos`,
-    descripcion: `${esInventario ? "Venta" : "Compra"} del equivalente a ${contratosTotal} contrato(s) repartida en ${TRAMOS_POR_DEFECTO} fijaciones uniformes hasta el ${esInventario ? "embarque" : "abastecimiento"}. Promedia el precio en vez de apostar a un solo momento.`,
-    ratioCobertura: 1,
-    contratos: contratosTotal,
-    toneladasCubiertas: toneladasTotal,
-    toneladasResiduales: lote.toneladas - toneladasTotal,
-    tramos: TRAMOS_POR_DEFECTO,
-    costoInicialUsd: 0,
-  });
+  //
+  // Reparte la posición en tramos, y un contrato no se parte: con menos
+  // contratos que tramos el precio medio que calcula el motor es
+  // inalcanzable. Recomendar algo que el bróker no puede ejecutar es peor
+  // que ofrecer una alternativa menos.
+  if (contratosTotal >= TRAMOS_POR_DEFECTO) {
+    estrategias.push({
+      id: `escalonada_${TRAMOS_POR_DEFECTO}`,
+      tipo: "escalonada",
+      sentido,
+      nombre: `Fijación escalonada en ${TRAMOS_POR_DEFECTO} tramos`,
+      descripcion: `${esInventario ? "Venta" : "Compra"} del equivalente a ${contratosTotal} contrato(s) repartida en ${TRAMOS_POR_DEFECTO} fijaciones uniformes hasta el ${esInventario ? "embarque" : "abastecimiento"}. Promedia el precio en vez de apostar a un solo momento.`,
+      ratioCobertura: 1,
+      contratos: contratosTotal,
+      toneladasCubiertas: toneladasTotal,
+      toneladasResiduales: lote.toneladas - toneladasTotal,
+      tramos: TRAMOS_POR_DEFECTO,
+      costoInicialUsd: 0,
+    });
+  }
 
   return estrategias;
 }
@@ -543,7 +596,13 @@ export function curvaPayoff(
 
     return {
       futuro,
-      utilidad: evaluarEnEscenario(estrategia, lote, mercado, escenario, supuestos).utilidadCop,
+      utilidad: evaluarEnEscenario(
+        estrategia,
+        lote,
+        mercado,
+        escenario,
+        supuestos,
+      ).utilidadCop,
     };
   });
 }

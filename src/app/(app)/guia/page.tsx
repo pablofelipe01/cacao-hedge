@@ -455,12 +455,20 @@ export default function PaginaGuia() {
           ))}
         </ol>
 
-        <Link
-          href="/analisis/nuevo"
-          className="inline-block rounded-md bg-cacao px-3 py-2 text-sm font-medium text-white transition hover:bg-cacao-claro"
-        >
-          Empezar un análisis
-        </Link>
+        <div className="flex flex-wrap gap-3">
+          <Link
+            href="/analisis/nuevo"
+            className="rounded-md bg-cacao px-3 py-2 text-sm font-medium text-white transition hover:bg-cacao-claro"
+          >
+            Empezar un análisis
+          </Link>
+          <Link
+            href="/guia/resultados"
+            className="rounded-md border border-cacao px-3 py-2 text-sm font-medium text-cacao transition hover:bg-cacao hover:text-white"
+          >
+            Qué significa cada cifra
+          </Link>
+        </div>
       </section>
 
       <Disclaimer />

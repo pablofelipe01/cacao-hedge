@@ -281,7 +281,7 @@ export function textoOrdenBroker(datos: DatosOrden): string {
         `hasta mi fecha de ${compra ? "compra" : "embarque"}, para promediar el precio.` +
         (reparteParejo
           ? ` Serían ${estrategia.contratos / estrategia.tramos} contrato(s) por tramo.`
-          : ` Como son ${estrategia.contratos} contratos en ${estrategia.tramos} tramos no reparte parejo: díganme cómo lo cuadramos.`),
+          : ` Como son ${estrategia.contratos} contrato${estrategia.contratos === 1 ? "" : "s"} en ${estrategia.tramos} tramos no reparte parejo: díganme cómo lo cuadramos.`),
       "¿Pueden programarlos ustedes, o se los voy enviando uno por uno?",
     );
   }
