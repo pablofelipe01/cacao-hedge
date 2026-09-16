@@ -5,6 +5,7 @@ import { Disclaimer } from "@/components/Disclaimer";
 import { Explicacion } from "@/components/Explicacion";
 import { TablaEstrategias } from "@/components/TablaEstrategias";
 import { TarjetaMetrica } from "@/components/TarjetaMetrica";
+import { Analista } from "./Analista";
 import { InformeNarrativo } from "./InformeNarrativo";
 import { SelectorEstrategia } from "./SelectorEstrategia";
 import { crearClienteServidor } from "@/lib/supabase/server";
@@ -266,6 +267,9 @@ export default async function PaginaResultados({ params }: PageProps<"/analisis/
           } | null
         }
       />
+
+      {/* --- Analista ------------------------------------------------------ */}
+      <Analista analisisId={analisis.id} />
 
       {/* --- Tabla comparativa ------------------------------------------ */}
       <section aria-labelledby="estrategias" className="space-y-3">

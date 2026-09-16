@@ -14,7 +14,11 @@
 import { CC_TONELADAS_POR_CONTRATO } from "@/lib/engine/constantes";
 import type { EvaluacionEstrategia, Recomendacion } from "@/lib/engine/index";
 import { operacionDe } from "@/lib/engine/estrategias";
-import { precioVentaPactadoUsdTm } from "@/lib/engine/fx";
+import {
+  diferencialEnEscenarioUsdTm,
+  precioFisicoUsdTm,
+  precioVentaPactadoUsdTm,
+} from "@/lib/engine/fx";
 import type { Lote, Mercado, Supuestos, TipoOperacion } from "@/lib/engine/tipos";
 
 export interface EstrategiaResumida {
@@ -150,11 +154,16 @@ export function construirResumen(entrada: EntradaResumen): ResumenCuantitativo {
   // Con inventario el precio que flota es el de venta; con una venta ya
   // cerrada lo que flota es lo que costará comprar el físico. Son cifras
   // distintas y el informe no puede intercambiarlas.
-  const precioFisico = esInventario
-    ? lote.tipoContrato === "precio_fijo_usd" && lote.precioVentaUsdTm != null
-      ? lote.precioVentaUsdTm
-      : mercado.futuroUsdTm + lote.diferencialUsdTm
-    : mercado.futuroUsdTm + lote.diferencialUsdTm;
+  //
+  // Va por `precioFisicoUsdTm` y no sumando el diferencial a mano porque
+  // con diferencial porcentual no se suma: se escala. Sumarlo daba 7.000
+  // USD/TM donde el costo real era 5.355, y esa cifra entraba al informe
+  // como si fuera buena.
+  const precioFisico = precioFisicoUsdTm(
+    lote,
+    mercado.futuroUsdTm,
+    diferencialEnEscenarioUsdTm(lote, mercado.futuroUsdTm),
+  );
 
   const exposicionUsd = lote.toneladas * precioFisico;
 
