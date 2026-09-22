@@ -1,9 +1,10 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useRef, useState, useTransition } from "react";
 
 import { CLASES_INPUT } from "@/components/Campo";
 import type { TurnoChat } from "@/lib/anthropic/analista";
+import { aplicarEscenario } from "@/lib/acciones/escenario";
 
 interface Props {
   analisisId: string;
@@ -16,6 +17,18 @@ const SUGERENCIAS = [
   "¿Me conviene más el collar que los futuros?",
   "¿Cuánta caja necesito tener lista?",
 ];
+
+/** Cómo se nombra cada cambio para el usuario, en vez de la clave interna. */
+const NOMBRE_CAMBIO: Record<string, string> = {
+  toneladas: "toneladas",
+  diasAEmbarque: "días al embarque",
+  precioVentaUsdTm: "precio de venta USD/TM",
+  diferencialUsdTm: "diferencial USD/TM",
+  diferencialPorcentaje: "diferencial % de NY",
+  futuroUsdTm: "futuro USD/TM",
+  trm: "TRM",
+  costoCopKg: "costo COP/kg",
+};
 
 /**
  * Conversación con el analista sobre este análisis.
@@ -32,6 +45,20 @@ export function Analista({ analisisId }: Props) {
   const [pensando, setPensando] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const finRef = useRef<HTMLDivElement>(null);
+  const [aplicando, iniciarAplicar] = useTransition();
+  const [aplicandoClave, setAplicandoClave] = useState<string | null>(null);
+
+  /** Guarda un recálculo como análisis nuevo; la acción redirige a él. */
+  const aplicar = (clave: string, descripcion: string, cambios: Record<string, number>) => {
+    setAplicandoClave(clave);
+    setError(null);
+    iniciarAplicar(async () => {
+      const r = await aplicarEscenario(analisisId, descripcion, cambios);
+      // Solo vuelve si falló: cuando sale bien, la acción redirige.
+      if (r?.error) setError(r.error);
+      setAplicandoClave(null);
+    });
+  };
 
   const preguntar = async (texto: string) => {
     const limpia = texto.trim();
@@ -112,20 +139,39 @@ export function Analista({ analisisId }: Props) {
             {turno.recalculos && turno.recalculos.length > 0 ? (
               <div className="space-y-1 border-l-2 border-ambar pl-3">
                 <p className="text-xs font-medium">Escenarios que recalculó:</p>
-                {turno.recalculos.map((rec, j) => (
-                  <p key={j} className="text-xs leading-relaxed text-texto-suave">
-                    ▸ {rec.descripcion}
-                    {Object.keys(rec.cambios).length > 0 ? (
-                      <span className="tabular">
-                        {" "}
-                        ({Object.entries(rec.cambios)
-                          .map(([k, v]) => `${k}: ${v.toLocaleString("es-CO")}`)
-                          .join(", ")}
-                        )
-                      </span>
-                    ) : null}
-                  </p>
-                ))}
+                {turno.recalculos.map((rec, j) => {
+                  const clave = `${i}-${j}`;
+                  const hayCambios = Object.keys(rec.cambios).length > 0;
+                  return (
+                    <div key={j} className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
+                      <p className="text-xs leading-relaxed text-texto-suave">
+                        ▸ {rec.descripcion}
+                        {hayCambios ? (
+                          <span className="tabular">
+                            {" "}
+                            ({Object.entries(rec.cambios)
+                              .map(([k, v]) => `${NOMBRE_CAMBIO[k] ?? k}: ${v.toLocaleString("es-CO")}`)
+                              .join(", ")}
+                            )
+                          </span>
+                        ) : null}
+                      </p>
+                      {hayCambios ? (
+                        <button
+                          type="button"
+                          onClick={() => aplicar(clave, rec.descripcion, rec.cambios)}
+                          disabled={aplicando}
+                          className="flex-none text-xs text-cacao hover:underline disabled:opacity-50"
+                        >
+                          {aplicandoClave === clave ? "Guardando…" : "Aplicar este escenario"}
+                        </button>
+                      ) : null}
+                    </div>
+                  );
+                })}
+                <p className="text-xs text-texto-suave">
+                  Aplicar crea un análisis nuevo con ese escenario. Este no cambia.
+                </p>
               </div>
             ) : null}
           </div>

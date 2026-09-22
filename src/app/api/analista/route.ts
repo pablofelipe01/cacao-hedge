@@ -1,15 +1,9 @@
 import { NextResponse } from "next/server";
 
 import { obtenerUsuario, crearClienteServidor } from "@/lib/supabase/server";
-import {
-  ErrorAnalista,
-  responderAnalista,
-  type ContextoAnalisis,
-  type TurnoChat,
-} from "@/lib/anthropic/analista";
+import { ErrorAnalista, responderAnalista, type TurnoChat } from "@/lib/anthropic/analista";
+import { contextoDesdeFila } from "@/lib/anthropic/contexto-analisis";
 import { construirResumen } from "@/lib/anthropic/resumen";
-import type { EvaluacionEstrategia, Recomendacion } from "@/lib/engine/index";
-import type { Lote, Mercado, Supuestos, TipoOperacion } from "@/lib/engine/tipos";
 
 /**
  * Una respuesta puede encadenar varios recálculos, y cada vuelta es una
@@ -61,65 +55,13 @@ export async function POST(peticion: Request) {
     return NextResponse.json({ error: "No se encontró el análisis." }, { status: 404 });
   }
 
-  const entradas = analisis.entradas as unknown as {
-    toneladas: number;
-    costoCopKg: number;
-    diasAEmbarque: number;
-    diferencialUsdTm: number;
-    tipoContrato: Lote["tipoContrato"];
-    precioVentaUsdTm?: string;
-    fechaEmbarque: string;
-    situacion?: "tengo_cacao" | "ya_vendi";
-    modoDiferencial?: "absoluto" | "porcentual";
-  };
-  const mercado = analisis.mercado as unknown as Mercado & {
-    procedencia?: { cacao: { fuente: string; simbolo: string; barras: number } };
-  };
-  const resultados = analisis.resultados as unknown as {
-    evaluaciones: EvaluacionEstrategia[];
-    recomendacion: Recomendacion;
-    precioEquilibrioUsdTm: number;
-    dimensionamiento: ContextoAnalisis extends never ? never : Parameters<typeof construirResumen>[0]["dimensionamiento"];
-    advertencias: string[];
-    advertenciasDatos?: string[];
-    operacion?: TipoOperacion;
-  };
-
-  const tipoOperacion: TipoOperacion =
-    resultados.operacion ??
-    (entradas.situacion === "ya_vendi" ? "venta_sin_comprar" : "inventario_sin_vender");
-  const esPorcentual = entradas.modoDiferencial === "porcentual";
-  const precio = Number(String(entradas.precioVentaUsdTm ?? "").replace(",", "."));
-
-  const lote: Lote = {
-    toneladas: entradas.toneladas,
-    costoCopKg: tipoOperacion === "venta_sin_comprar" ? 0 : entradas.costoCopKg,
-    diasAEmbarque: entradas.diasAEmbarque,
-    diferencialUsdTm: esPorcentual ? 0 : entradas.diferencialUsdTm,
-    diferencialPorcentual: esPorcentual ? entradas.diferencialUsdTm / 100 : null,
-    tipoOperacion,
-    tipoContrato: entradas.tipoContrato,
-    precioVentaUsdTm: Number.isFinite(precio) ? precio : null,
-  };
-
-  const procedencia = mercado.procedencia?.cacao ?? {
-    fuente: "desconocida",
-    simbolo: "CC",
-    barras: 0,
-  };
-
-  const contexto: ContextoAnalisis = {
-    lote,
-    mercado,
-    supuestos: analisis.supuestos as unknown as Supuestos,
-    fechaEmbarque: entradas.fechaEmbarque,
-    procedencia,
-  };
+  const { contexto, resultados } = contextoDesdeFila(analisis);
+  const { lote, procedencia } = contexto;
 
   const resumenActual = construirResumen({
     lote,
-    fechaEmbarque: entradas.fechaEmbarque,
-    mercado,
+    fechaEmbarque: contexto.fechaEmbarque,
+    mercado: contexto.mercado,
     supuestos: contexto.supuestos,
     evaluaciones: resultados.evaluaciones,
     recomendacion: resultados.recomendacion,

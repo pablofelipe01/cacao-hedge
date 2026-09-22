@@ -13,6 +13,7 @@ import { cop, fechaLegible, porcentaje, toneladas, usdTm } from "@/lib/formato";
 import type { EvaluacionEstrategia, EvaluacionFx, Recomendacion } from "@/lib/engine/index";
 import type { DimensionamientoCobertura } from "@/lib/engine/contratos";
 import type { TipoOperacion } from "@/lib/engine/tipos";
+import type { EscenarioAplicado } from "@/lib/anthropic/contexto-analisis";
 
 interface ResultadosGuardados {
   /** Ausente en los análisis guardados antes del caso A: todos eran de inventario. */
@@ -49,6 +50,8 @@ interface EntradasGuardadas {
   diasAEmbarque: number;
   /** Ausente en los análisis guardados antes del diferencial porcentual. */
   modoDiferencial?: "absoluto" | "porcentual";
+  /** Solo en los análisis creados desde un escenario del chat. */
+  escenario?: EscenarioAplicado;
 }
 
 /**
@@ -132,6 +135,24 @@ export default async function PaginaResultados({ params }: PageProps<"/analisis/
           {entradas.diasAEmbarque} días) · diferencial {diferencialLegible}
         </p>
       </header>
+
+      {/* Un escenario del chat usa el mercado del análisis original, no el
+          de hoy: sin este aviso se leería como una foto del mercado actual. */}
+      {entradas.escenario ? (
+        <section className="rounded-lg border border-borde bg-superficie px-4 py-3 text-sm">
+          <p className="font-medium">Escenario hipotético: {entradas.escenario.descripcion}</p>
+          <p className="mt-1 text-xs leading-relaxed text-texto-suave">
+            Salió de una pregunta al analista. Usa el mercado y los supuestos del{" "}
+            <Link
+              href={`/analisis/${entradas.escenario.origenId}`}
+              className="text-cacao hover:underline"
+            >
+              análisis original
+            </Link>{" "}
+            y cambia solo lo que se pidió; el original sigue igual.
+          </p>
+        </section>
+      ) : null}
 
       {/* --- Recomendación --------------------------------------------- */}
       <section className="rounded-lg border border-ambar/40 bg-ambar/5 p-4">

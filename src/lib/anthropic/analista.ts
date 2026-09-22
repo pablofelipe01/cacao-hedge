@@ -162,18 +162,32 @@ export interface ContextoAnalisis {
   procedencia: { fuente: string; simbolo: string; barras: number };
 }
 
+/** Lo que un recálculo puede mover. Todo lo demás queda como en pantalla. */
+export const CLAVES_RECALCULO = [
+  "toneladas",
+  "diasAEmbarque",
+  "precioVentaUsdTm",
+  "diferencialUsdTm",
+  "diferencialPorcentaje",
+  "futuroUsdTm",
+  "trm",
+  "costoCopKg",
+] as const;
+
 /**
- * Corre el motor con las entradas cambiadas.
+ * Pisa sobre el análisis en pantalla solo lo que venga en la entrada.
  *
- * Parte SIEMPRE del análisis en pantalla y solo pisa lo que venga: así,
- * una respuesta sobre «30 toneladas en vez de 40» conserva el mismo
- * precio, el mismo diferencial y los mismos supuestos, y la comparación
- * es honesta.
+ * Parte SIEMPRE del análisis en pantalla: así, una respuesta sobre «30
+ * toneladas en vez de 40» conserva el mismo precio, el mismo diferencial
+ * y los mismos supuestos, y la comparación es honesta. Lo usan el chat y
+ * el botón «Aplicar este escenario», y por eso vive en un solo sitio: si
+ * los dos lo hicieran a su manera, el análisis aplicado podría no dar las
+ * cifras que el analista acababa de citar.
  */
-export function ejecutarRecalculo(
+export function aplicarCambios(
   contexto: ContextoAnalisis,
   entrada: Record<string, unknown>,
-): ResumenCuantitativo {
+): { lote: Lote; mercado: Mercado } {
   const n = (clave: string): number | undefined => {
     const v = entrada[clave];
     return typeof v === "number" && Number.isFinite(v) ? v : undefined;
@@ -200,6 +214,15 @@ export function ejecutarRecalculo(
     trm: n("trm") ?? contexto.mercado.trm,
   };
 
+  return { lote, mercado };
+}
+
+/** Corre el motor con las entradas cambiadas. */
+export function ejecutarRecalculo(
+  contexto: ContextoAnalisis,
+  entrada: Record<string, unknown>,
+): ResumenCuantitativo {
+  const { lote, mercado } = aplicarCambios(contexto, entrada);
   const r = analizarCobertura(lote, mercado, contexto.supuestos);
 
   return construirResumen({
@@ -335,7 +358,10 @@ export async function responderAnalista(
           // Solo los cambios numéricos: la descripción ya va aparte, y
           // esto se muestra al usuario como «qué se movió».
           cambios: Object.fromEntries(
-            Object.entries(entrada).filter(([, v]) => typeof v === "number"),
+            Object.entries(entrada).filter(
+              ([k, v]) =>
+                typeof v === "number" && (CLAVES_RECALCULO as readonly string[]).includes(k),
+            ),
           ) as Record<string, number>,
         });
 
