@@ -10,6 +10,7 @@ import { ErrorDatos } from "@/lib/data/errores";
 import { elegirProveedor, obtenerMercado, type OrigenCacao } from "@/lib/data/mercado";
 import type { FuentePrecio } from "@/types/database";
 import { analizarCobertura } from "@/lib/engine/index";
+import { margenMantenimientoDesdeInicial } from "@/lib/engine/constantes";
 import {
   SUPUESTOS_POR_DEFECTO,
   type Lote,
@@ -60,7 +61,9 @@ async function supuestosDelUsuario(userId: string): Promise<SupuestosCompletos> 
     supuestos: {
       ...SUPUESTOS_POR_DEFECTO,
       margenInicialUsd: Number(data.margen_inicial_usd),
-      margenMantenimientoUsd: Number(data.margen_mantenimiento_usd),
+      // Del inicial y no de la columna: las filas guardadas antes de que se
+      // derivara conservan el 7.200 por defecto que nadie confirmó.
+      margenMantenimientoUsd: margenMantenimientoDesdeInicial(Number(data.margen_inicial_usd)),
       comisionUsdContrato: Number(data.comision_usd_contrato),
       tasaLibreRiesgo: Number(data.tasa_libre_riesgo),
       diasHabilesAnio: data.dias_habiles_anio,

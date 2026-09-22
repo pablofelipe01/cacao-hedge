@@ -93,14 +93,14 @@ const TEXTOS: Record<Situacion, {
     fecha: "Fecha de embarque",
     ayudaFecha:
       "Cuándo sale el contenedor. Marca el horizonte del riesgo y el vencimiento de las opciones.",
-    diferencial: "Diferencial sobre Nueva York (USD/TM)",
+    diferencial: "Diferencial de VENTA sobre Nueva York (USD/TM)",
     ayudaDiferencial:
-      "La prima o descuento de SU cacao frente al futuro: positivo si le pagan por encima de la bolsa, negativo (−250) si por debajo. La cobertura NO fija este número.",
-    placeholderDiferencial: "250",
-    diferencialPct: "Diferencial sobre Nueva York (% del futuro)",
+      "Lo que le paga su comprador del exterior frente al futuro: positivo si por encima de la bolsa, negativo (−150) si por debajo. El descuento al que usted le compró al productor NO va aquí: ya está dentro del costo de arriba. La cobertura no fija este número.",
+    placeholderDiferencial: "-150",
+    diferencialPct: "Diferencial de VENTA sobre Nueva York (% del futuro)",
     ayudaDiferencialPct:
-      "Si le pagan un porcentaje del cierre de Nueva York. Positivo si por encima, negativo (−10) si por debajo.",
-    placeholderDiferencialPct: "5",
+      "Si su comprador le paga un porcentaje del cierre de Nueva York: positivo si por encima, negativo (−3) si por debajo. El descuento al que compró al productor ya está en el costo de arriba: no lo repita aquí.",
+    placeholderDiferencialPct: "-3",
     precio: "Precio pactado (USD/TM)",
     ayudaPrecio:
       "Con el precio cerrado el riesgo de mercado ya no existe: lo que queda vivo es el cambiario.",
@@ -129,6 +129,22 @@ const TEXTOS: Record<Situacion, {
     ayudaPrecio:
       "El ingreso ya está fijo en este número. Todo el análisis mide qué tanto del margen se le come el costo de abastecerse.",
   },
+};
+
+/**
+ * Qué significa cada forma de venta para el riesgo.
+ *
+ * «Contra Nueva York ± diferencial» es la forma habitual del exportador:
+ * el diferencial queda pactado, pero el componente de bolsa se fija el día
+ * del embarque, así que el riesgo de precio sigue entero hasta entonces.
+ */
+const AYUDA_CONTRATO: Record<string, string> = {
+  sin_contrato:
+    "Todo está abierto: el precio de Nueva York y el diferencial al que termine vendiendo.",
+  por_fijar_ny:
+    "Lo habitual. El diferencial ya está pactado, pero el precio de Nueva York se fija el día del embarque: hasta entonces el riesgo de precio es todo suyo. Escriba arriba el diferencial pactado.",
+  precio_fijo_usd:
+    "Con el precio cerrado el riesgo de Nueva York ya no existe: lo que queda vivo es el del dólar.",
 };
 
 interface Campos {
@@ -236,9 +252,9 @@ export function FormularioAnalisis({
           {[
             {
               valor: "tengo_cacao" as const,
-              titulo: "Tengo el cacao y aún no lo he vendido",
+              titulo: "Tengo el cacao comprado",
               detalle:
-                "El riesgo es que el precio BAJE: tendría que venderlo por menos de lo que costó. Se cubre vendiendo futuros.",
+                "Sin comprador, o vendido contra Nueva York para fijar el precio al embarcar. El riesgo es que el precio BAJE: tendría que venderlo por menos de lo que costó. Se cubre vendiendo futuros.",
             },
             {
               valor: "ya_vendi" as const,
@@ -308,7 +324,7 @@ export function FormularioAnalisis({
         ) : (
           <p className="rounded-md border border-dashed border-borde px-3 py-2 text-xs text-texto-suave">
             No hay inventario sincronizado.{" "}
-            <Link href="/bodega" className="text-cacao hover:underline">
+            <Link href="/dashboard" className="text-cacao hover:underline">
               Traerlo de la hoja
             </Link>{" "}
             {esInventario
@@ -395,11 +411,14 @@ export function FormularioAnalisis({
           ponerlas a mano.
         </p>
 
-        {descuento ? (
+        {/* El medido es un descuento de COMPRA al productor. Con el cacao ya
+            en bodega ese descuento está dentro del costo, y ofrecerlo como
+            diferencial de venta sería contarlo dos veces. */}
+        {descuento && !esInventario ? (
           <div className="flex flex-wrap items-center justify-between gap-3 rounded-md border border-borde bg-fondo p-3">
             <div>
               <p className="text-sm">
-                Descuento medido:{" "}
+                Descuento de compra medido:{" "}
                 <span className="tabular font-semibold">
                   {descuento.actualPorcentaje.toLocaleString("es-CO", {
                     maximumFractionDigits: 1,
@@ -494,6 +513,7 @@ export function FormularioAnalisis({
           <Campo
             id="tipoContrato"
             etiqueta="¿Cómo está pactada la venta?"
+            ayuda={AYUDA_CONTRATO[campos.tipoContrato]}
             error={errores.tipoContrato}
           >
             <select
@@ -504,8 +524,10 @@ export function FormularioAnalisis({
               className={CLASES_INPUT}
             >
               <option value="sin_contrato">Aún sin comprador</option>
-              <option value="por_fijar_ny">Comprador con precio por fijar contra NY</option>
-              <option value="precio_fijo_usd">Precio ya cerrado en USD</option>
+              <option value="por_fijar_ny">
+                Vendido contra Nueva York ± diferencial, el precio se fija al embarcar
+              </option>
+              <option value="precio_fijo_usd">Vendido a precio fijo en USD</option>
             </select>
           </Campo>
         ) : (

@@ -7,10 +7,10 @@ import {
   esquemaLote,
   interpretarNumero,
 } from "../esquemas";
+import { margenMantenimientoDesdeInicial } from "@/lib/engine/constantes";
 
 const CONFIG_VALIDA = {
   margenInicialUsd: "8000",
-  margenMantenimientoUsd: "7200",
   comisionUsdContrato: "15",
   tasaLibreRiesgoPorcentaje: "4,25",
   volFallbackPorcentaje: "35",
@@ -84,15 +84,22 @@ describe("esquemaConfiguracion", () => {
     expect(r.data?.volFallbackPorcentaje).toBe(53.3);
   });
 
-  it("rechaza un mantenimiento superior al margen inicial", () => {
-    // La posición nacería ya en llamada de margen.
-    const r = esquemaConfiguracion.safeParse({
-      ...CONFIG_VALIDA,
-      margenInicialUsd: "5000",
-      margenMantenimientoUsd: "6000",
-    });
-    expect(r.success).toBe(false);
-    expect(erroresPorCampo(r.error!).margenMantenimientoUsd).toMatch(/no puede superar/i);
+  it("el mantenimiento derivado nunca supera al margen inicial", () => {
+    // Ya no se pregunta: se deriva. Si superara al inicial, la posición
+    // nacería ya en llamada de margen.
+    for (const inicial of [1, 5000, 8459.67, 25000]) {
+      const mantenimiento = margenMantenimientoDesdeInicial(inicial);
+      expect(mantenimiento).toBeGreaterThan(0);
+      expect(mantenimiento).toBeLessThanOrEqual(inicial);
+    }
+    expect(margenMantenimientoDesdeInicial(8459.67)).toBeCloseTo(7690.61, 2);
+  });
+
+  it("ignora un mantenimiento enviado a mano", () => {
+    // Un formulario viejo en caché del navegador todavía podría mandarlo.
+    const r = esquemaConfiguracion.safeParse({ ...CONFIG_VALIDA, margenMantenimientoUsd: "999999" });
+    expect(r.success).toBe(true);
+    expect(r.data).not.toHaveProperty("margenMantenimientoUsd");
   });
 
   it("rechaza un nivel de confianza fuera de (50, 100)", () => {

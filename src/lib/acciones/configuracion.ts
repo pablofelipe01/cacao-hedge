@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 
+import { margenMantenimientoDesdeInicial } from "@/lib/engine/constantes";
 import { crearClienteServidor, obtenerUsuario } from "@/lib/supabase/server";
 import { erroresPorCampo, esquemaConfiguracion } from "./esquemas";
 import type { EstadoFormulario } from "./inventario";
@@ -33,7 +34,9 @@ export async function guardarConfiguracion(
   const { error } = await supabase.from("configuracion").upsert({
     user_id: usuario.id,
     margen_inicial_usd: d.margenInicialUsd,
-    margen_mantenimiento_usd: d.margenMantenimientoUsd,
+    // No se le pregunta: el exportador sabe lo que StoneX le cobra al abrir,
+    // no el umbral de mantenimiento, y el motor lo necesita para las llamadas.
+    margen_mantenimiento_usd: margenMantenimientoDesdeInicial(d.margenInicialUsd),
     comision_usd_contrato: d.comisionUsdContrato,
     tasa_libre_riesgo: d.tasaLibreRiesgoPorcentaje / 100,
     vol_fallback: d.volFallbackPorcentaje / 100,

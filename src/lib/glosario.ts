@@ -171,6 +171,36 @@ export const GLOSARIO = {
     que: "Con diferencial porcentual, las toneladas expuestas no son las físicas. Si compra un 23,5 % por debajo de la bolsa, su costo solo se mueve el 76,5 % de lo que se mueve Nueva York.",
     ojo: "Por eso hay que cubrir 7,65 y no 10. Cubrir las diez sería quedar comprado sobre 2,35 toneladas que nadie le pidió.",
   },
+
+  // --- Pantalla de precios ------------------------------------------------
+  precioProductor: {
+    titulo: "Precio hoy",
+    ejemplo: "14.400 COP/kg",
+    que: "Lo que ese comprador publicó como precio de compra del kilo de cacao el último día con datos. Es el precio contra el que usted compite para conseguir grano.",
+  },
+  nyEnPesos: {
+    titulo: "Nueva York en pesos",
+    ejemplo: "19.080 COP/kg",
+    que: "El futuro de Nueva York del mismo día, pasado a pesos por kilo con la TRM de ese día. Sirve para comparar peras con peras: los dos precios en la misma unidad.",
+  },
+  descuentoHoy: {
+    titulo: "Descuento hoy",
+    ejemplo: "−24,5 %",
+    que: "Cuánto por debajo de Nueva York está pagando ese comprador hoy. Es la distancia entre las dos columnas anteriores.",
+    ojo: "Es el número que el formulario de análisis le propone cuando le falta comprar el cacao.",
+  },
+  descuentoHabitual: {
+    titulo: "Descuento habitual",
+    ejemplo: "−23,0 %",
+    que: "El descuento de un día típico: la mitad de los días estuvo por encima y la otra mitad por debajo.",
+    ojo: "Si el de hoy está lejos del habitual, el mercado local está raro: más caro o más barato que de costumbre frente a la bolsa.",
+  },
+  rangoNormal: {
+    titulo: "Rango normal",
+    ejemplo: "−31,8 % a −15,1 %",
+    que: "Entre qué valores se movió el descuento 9 de cada 10 días. Se dejan fuera el 5 % de días más extremos por cada lado.",
+    ojo: "Ese vaivén es el riesgo de base: la parte que ninguna cobertura con futuros toca, porque es un riesgo del mercado colombiano y no de Nueva York.",
+  },
 } as const satisfies Record<string, EntradaGlosario>;
 
 /** Las entradas agrupadas como aparecen en pantalla, para la guía. */
@@ -216,5 +246,11 @@ export const SECCIONES_GLOSARIO: { seccion: string; intro?: string; claves: Clav
     intro:
       "Un contrato son 10 toneladas exactas y no se puede partir. Casi nunca calza con lo que usted tiene.",
     claves: ["subcobertura", "sobrecobertura", "toneladasExpuestas"],
+  },
+  {
+    seccion: "La pantalla de precios",
+    intro:
+      "Lo que pagan Nacional de Chocolates y Casa Luker, comparado con Nueva York. De ahí sale el descuento al que usted compra.",
+    claves: ["precioProductor", "nyEnPesos", "descuentoHoy", "descuentoHabitual", "rangoNormal"],
   },
 ];

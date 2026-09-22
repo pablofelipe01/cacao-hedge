@@ -19,11 +19,29 @@ export const metadata = {
     "Qué pregunta responde CacaoHedge, cuál de los dos casos de cobertura es el suyo y qué no hace la herramienta.",
 };
 
-/** Los dos casos, en espejo: cada fila se invierte punto por punto. */
+/**
+ * Los dos casos, en espejo: cada fila se invierte punto por punto.
+ *
+ * Sin letras a propósito. La guía llamaba «caso A» a «ya vendí» y el
+ * exportador llama caso A a «tengo el cacao»: una etiqueta que cada uno lee
+ * al revés es peor que ninguna. Se nombran por la situación, y va primero
+ * la que él vive más a menudo.
+ */
 const CASOS = [
   {
-    clave: "Caso A",
-    titulo: "Ya vendió, y le falta comprar el cacao",
+    titulo: "Tiene el cacao comprado",
+    situacion:
+      "El cacao ya está en bodega y pagado. Todavía no tiene comprador, o lo vendió contra Nueva York y el precio se fija al embarcar.",
+    flecha: "↓",
+    riesgo: "baje",
+    riesgoDetalle: "tendría que venderlo por menos de lo que le costó",
+    accion: "Vender",
+    cobertura:
+      "Si el mercado cae, lo que pierde en el físico lo gana en la bolsa.",
+    opciones: "Puts y collar",
+  },
+  {
+    titulo: "Ya vendió a precio fijo, y le falta comprar el cacao",
     situacion:
       "Cerró una venta al exterior a precio firme y todavía debe abastecerse para completar la orden.",
     flecha: "↑",
@@ -33,19 +51,6 @@ const CASOS = [
     cobertura:
       "Si el mercado sube, lo que paga de más por el físico lo gana en la bolsa.",
     opciones: "Calls y collar inverso",
-  },
-  {
-    clave: "Caso B",
-    titulo: "Tiene el cacao en bodega, sin vender",
-    situacion:
-      "El cacao ya está comprado y pagado, y todavía no tiene comprador en firme.",
-    flecha: "↓",
-    riesgo: "baje",
-    riesgoDetalle: "tendría que venderlo por menos de lo que le costó",
-    accion: "Vender",
-    cobertura:
-      "Si el mercado cae, lo que pierde en el físico lo gana en la bolsa.",
-    opciones: "Puts y collar",
   },
 ];
 
@@ -57,11 +62,11 @@ const CASOS = [
  * separan.
  */
 const EJEMPLO = [
-  { nombre: "Sin cobertura", contratos: "—", perdida: "37,7 %", peor: "−338,7 M", costo: "—", tono: "malo" },
-  { nombre: "Compra de futuros 75 %", contratos: "3", perdida: "21,6 %", peor: "−57,9 M", costo: "—", tono: "" },
-  { nombre: "Compra de futuros 100 %", contratos: "4", perdida: "0,0 %", peor: "+24,9 M", costo: "—", tono: "bueno", destacada: true },
-  { nombre: "Collar inverso 6.250 / 5.725", contratos: "4", perdida: "21,4 %", peor: "−7,6 M", costo: "167 USD", tono: "" },
-  { nombre: "Call protector 6.250", contratos: "4", perdida: "50,3 %", peor: "−69,3 M", costo: "20.123 USD", tono: "malo" },
+  { nombre: "Sin cobertura", contratos: "—", perdida: "33,1 %", peor: "−240,6 M", costo: "—", tono: "malo" },
+  { nombre: "Compra de futuros 50–75 %", contratos: "2", perdida: "18,4 %", peor: "−56,8 M", costo: "—", tono: "" },
+  { nombre: "Compra de futuros 100 %", contratos: "3", perdida: "2,3 %", peor: "+10,1 M", costo: "—", tono: "bueno", destacada: true },
+  { nombre: "Collar inverso 6.250 / 5.725", contratos: "3", perdida: "8,4 %", peor: "−8,6 M", costo: "127 USD", tono: "" },
+  { nombre: "Call protector 5.950", contratos: "3", perdida: "33,7 %", peor: "−40,1 M", costo: "18.812 USD", tono: "malo" },
 ];
 
 const CIFRAS = [
@@ -196,15 +201,10 @@ export default function PaginaGuia() {
         <div className="grid gap-3 sm:grid-cols-2">
           {CASOS.map((caso) => (
             <article
-              key={caso.clave}
+              key={caso.titulo}
               className="space-y-3 rounded-lg border border-borde bg-superficie p-4"
             >
-              <div>
-                <p className="text-xs uppercase tracking-wide text-texto-suave">
-                  {caso.clave}
-                </p>
-                <h3 className="mt-0.5 text-sm font-medium leading-snug">{caso.titulo}</h3>
-              </div>
+              <h3 className="text-sm font-medium leading-snug">{caso.titulo}</h3>
 
               <dl className="space-y-2.5 text-xs leading-relaxed">
                 <div>
@@ -242,7 +242,7 @@ export default function PaginaGuia() {
       {/* --- Ejemplo ------------------------------------------------------ */}
       <section aria-labelledby="ejemplo" className="space-y-3">
         <h2 id="ejemplo" className="text-sm font-semibold">
-          Un caso A con cifras reales
+          Un ejemplo con cifras: vendió a precio fijo y le falta comprar
         </h2>
 
         <div className="space-y-3 rounded-lg border border-borde bg-superficie p-4">
@@ -250,13 +250,18 @@ export default function PaginaGuia() {
             Ejemplo de prueba · no son datos de su operación
           </p>
           <p className="max-w-prose text-sm leading-relaxed">
-            Venta cerrada de 40 TM a 6.500 USD/TM, entrega a 90 días, y le paga al
-            productor 250 USD/TM por encima de la bolsa. El futuro CC de Nueva York está
-            en 5.961, así que abastecerse cuesta hoy unos{" "}
-            <span className="tabular font-medium">6.211 USD/TM</span> y el techo —el
-            precio máximo de compra que todavía deja margen— es{" "}
-            <span className="tabular font-medium">6.250</span>. Son 39 dólares de
-            colchón, con el cacao moviéndose a una volatilidad del 53 % anual.
+            Venta cerrada de 40 TM a 5.000 USD/TM, entrega a 90 días. Al productor le
+            compra un 23 % por debajo de la bolsa. El futuro CC de Nueva York está en
+            5.961, así que abastecerse cuesta hoy unos{" "}
+            <span className="tabular font-medium">4.590 USD/TM</span>. El techo —hasta
+            dónde puede subir Nueva York antes de que la venta deje de dejarle plata— es{" "}
+            <span className="tabular font-medium">6.494</span>: 533 dólares de colchón,
+            con el cacao moviéndose a una volatilidad del 53 % anual.
+          </p>
+          <p className="max-w-prose text-sm leading-relaxed">
+            Fíjese en los contratos: son 3, no 4. Como compra a un porcentaje de la
+            bolsa, su costo solo se mueve el 77 % de lo que se mueve Nueva York, y el
+            riesgo real es de 30,8 toneladas, no de 40.
           </p>
 
           <div className="overflow-x-auto">
@@ -314,10 +319,10 @@ export default function PaginaGuia() {
           <p className="max-w-prose text-xs leading-relaxed text-texto-suave">
             Cifras en pesos. La recomendación sale del{" "}
             <strong className="font-semibold text-texto">peor 5 %</strong>, no de la
-            utilidad promedio: proteger la cola es el punto de cubrirse. Fíjese en que
-            los <em>calls</em> salen mal parados aquí —la prima se come un margen que ya
-            era delgado— y en que el collar inverso cuesta 167 USD y baja la probabilidad
-            de pérdida del 37,7 % al 21,4 %.
+            utilidad promedio: proteger la cola es el punto de cubrirse. Comprar futuros
+            baja la probabilidad de pérdida del 33,1 % al 2,3 %. No llega a cero porque
+            el descuento al productor también se mueve, y eso la bolsa no lo cubre. Los{" "}
+            <em>calls</em> salen mal parados: la prima se come buena parte del margen.
           </p>
         </div>
       </section>

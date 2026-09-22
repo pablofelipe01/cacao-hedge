@@ -222,7 +222,6 @@ export function erroresPorCampo(error: z.ZodError): Record<string, string> {
 export const esquemaConfiguracion = z
   .object({
     margenInicialUsd: numeroPositivo("El margen inicial"),
-    margenMantenimientoUsd: numeroPositivo("El margen de mantenimiento"),
     comisionUsdContrato: numeroNoNegativo("La comisión"),
     tasaLibreRiesgoPorcentaje: numeroDeTexto.pipe(
       z.number().min(0, "La tasa no puede ser negativa.").max(50, "Una tasa por encima del 50 % anual no es plausible."),
@@ -239,17 +238,6 @@ export const esquemaConfiguracion = z
     trayectoriasMc: numeroDeTexto.pipe(
       z.number().int("Debe ser un número entero.").min(1000, "Con menos de 1.000 trayectorias la simulación es ruido.").max(200000, "Más de 200.000 trayectorias no mejora el resultado y tarda demasiado."),
     ),
-  })
-  .superRefine((datos, ctx) => {
-    // Un mantenimiento superior al inicial haría que la posición naciera
-    // ya en llamada de margen: la tabla lo prohíbe y aquí se explica.
-    if (datos.margenMantenimientoUsd > datos.margenInicialUsd) {
-      ctx.addIssue({
-        code: "custom",
-        path: ["margenMantenimientoUsd"],
-        message: "El margen de mantenimiento no puede superar al inicial.",
-      });
-    }
   });
 
 export type DatosConfiguracion = z.infer<typeof esquemaConfiguracion>;

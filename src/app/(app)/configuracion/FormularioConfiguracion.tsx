@@ -62,22 +62,6 @@ export function FormularioConfiguracion({ valores }: { valores: Valores }) {
           </Campo>
 
           <Campo
-            id="margenMantenimientoUsd"
-            etiqueta="Margen de mantenimiento (USD/contrato)"
-            ayuda="Por debajo de este nivel llega la llamada de margen."
-            error={errores.margenMantenimientoUsd}
-          >
-            <input
-              id="margenMantenimientoUsd"
-              name="margenMantenimientoUsd"
-              inputMode="decimal"
-              defaultValue={comaDecimal(valores.margenMantenimientoUsd)}
-              required
-              className={CLASES_INPUT}
-            />
-          </Campo>
-
-          <Campo
             id="comisionUsdContrato"
             etiqueta="Comisión (USD/contrato)"
             ayuda="Ida y vuelta."
@@ -109,6 +93,19 @@ export function FormularioConfiguracion({ valores }: { valores: Valores }) {
             />
           </Campo>
         </div>
+
+        {/* No se pide: se deriva al guardar. Se muestra para que la cifra
+            que dispara las llamadas de margen no sea invisible. */}
+        <p className="text-xs leading-relaxed text-texto-suave">
+          Margen de mantenimiento:{" "}
+          <span className="tabular font-medium text-texto">
+            {valores.margenMantenimientoUsd.toLocaleString("es-CO", { maximumFractionDigits: 2 })}{" "}
+            USD/contrato
+          </span>
+          . No hace falta escribirlo: se calcula solo, como el inicial dividido entre
+          1,1, que es la relación que usa ICE. Por debajo de ese nivel llega la llamada de
+          margen.
+        </p>
       </fieldset>
 
       <fieldset className="space-y-5 rounded-lg border border-borde bg-superficie p-5">

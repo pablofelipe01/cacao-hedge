@@ -2,6 +2,7 @@ import Link from "next/link";
 
 import { Disclaimer } from "@/components/Disclaimer";
 import { crearClienteServidor, obtenerUsuario } from "@/lib/supabase/server";
+import { margenMantenimientoDesdeInicial } from "@/lib/engine/constantes";
 import { SUPUESTOS_POR_DEFECTO } from "@/lib/engine/tipos";
 import { FormularioConfiguracion } from "./FormularioConfiguracion";
 
@@ -15,11 +16,13 @@ export default async function PaginaConfiguracion() {
     .eq("user_id", usuario?.id ?? "")
     .maybeSingle();
 
+  const margenInicialUsd = Number(
+    data?.margen_inicial_usd ?? SUPUESTOS_POR_DEFECTO.margenInicialUsd,
+  );
+
   const valores = {
-    margenInicialUsd: Number(data?.margen_inicial_usd ?? SUPUESTOS_POR_DEFECTO.margenInicialUsd),
-    margenMantenimientoUsd: Number(
-      data?.margen_mantenimiento_usd ?? SUPUESTOS_POR_DEFECTO.margenMantenimientoUsd,
-    ),
+    margenInicialUsd,
+    margenMantenimientoUsd: margenMantenimientoDesdeInicial(margenInicialUsd),
     comisionUsdContrato: Number(
       data?.comision_usd_contrato ?? SUPUESTOS_POR_DEFECTO.comisionUsdContrato,
     ),

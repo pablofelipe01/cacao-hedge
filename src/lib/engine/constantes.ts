@@ -45,3 +45,22 @@ export const KG_POR_TONELADA = 1000;
  * y para escalar el VaR al horizonte del embarque.
  */
 export const DIAS_HABILES_ANIO = 252;
+
+/**
+ * Cuántas veces el margen de mantenimiento cabe en el inicial.
+ *
+ * ICE fija el margen inicial del CC en un 110 % del de mantenimiento para
+ * las cuentas especulativas. El exportador conoce el inicial —es lo que
+ * StoneX le retiene al abrir— pero no el de mantenimiento, y pedírselo era
+ * pedirle un número que no tenía. Se deriva con esta relación.
+ *
+ * Una cuenta calificada como de cobertura tiene los dos iguales; derivar
+ * con 110 % hace llegar la llamada de margen un poco antes, que es el lado
+ * prudente del error.
+ */
+export const RELACION_MARGEN_INICIAL_MANTENIMIENTO = 1.1;
+
+/** El margen de mantenimiento que corresponde a un margen inicial. */
+export function margenMantenimientoDesdeInicial(margenInicialUsd: number): number {
+  return Math.round((margenInicialUsd / RELACION_MARGEN_INICIAL_MANTENIMIENTO) * 100) / 100;
+}

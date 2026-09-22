@@ -1,10 +1,11 @@
 import Link from "next/link";
 
 import { Disclaimer } from "@/components/Disclaimer";
+import { Explicacion } from "@/components/Explicacion";
 import { crearClienteServidor, obtenerUsuario } from "@/lib/supabase/server";
 import { descuentoVigente } from "@/lib/data/descuento-productor";
 import { COMPRADORES } from "@/lib/data/hoja-precios-productor";
-import { fechaLegible, porcentaje, usdTm } from "@/lib/formato";
+import { copExacto, fechaLegible, porcentaje } from "@/lib/formato";
 import { FormularioPrecios } from "./FormularioPrecios";
 
 /** Leer la hoja sale a la red: el arranque en frío supera los 10 s por defecto. */
@@ -53,27 +54,50 @@ export default async function PaginaPrecios() {
       {conDatos.length > 0 ? (
         <section aria-labelledby="medido" className="space-y-3">
           <h2 id="medido" className="text-sm font-semibold">
-            Descuento medido contra Nueva York
+            Cuánto pagan y a qué distancia de Nueva York
           </h2>
 
           <div className="overflow-x-auto">
-            <table className="tabular w-full text-sm">
+            <table className="tabular w-full min-w-[640px] text-sm">
               <thead>
                 <tr className="border-b border-borde text-left text-xs text-texto-suave">
                   <th scope="col" className="py-2 pr-3 font-medium">Comprador</th>
-                  <th scope="col" className="py-2 pr-3 text-right font-medium">Días</th>
-                  <th scope="col" className="py-2 pr-3 text-right font-medium">Hoy</th>
-                  <th scope="col" className="py-2 pr-3 text-right font-medium">Mediana</th>
-                  <th scope="col" className="py-2 text-right font-medium">Rango p5–p95</th>
+                  <th scope="col" className="py-2 pr-3 text-right font-medium">
+                    <Explicacion termino="precioProductor">Precio hoy</Explicacion>
+                    <span className="block font-normal">COP/kg</span>
+                  </th>
+                  <th scope="col" className="py-2 pr-3 text-right font-medium">
+                    <Explicacion termino="nyEnPesos">Nueva York</Explicacion>
+                    <span className="block font-normal">COP/kg</span>
+                  </th>
+                  <th scope="col" className="py-2 pr-3 text-right font-medium">
+                    <Explicacion termino="descuentoHoy">Descuento hoy</Explicacion>
+                    <span className="block font-normal">vs. NY</span>
+                  </th>
+                  <th scope="col" className="py-2 pr-3 text-right font-medium">
+                    <Explicacion termino="descuentoHabitual">Habitual</Explicacion>
+                    <span className="block font-normal">vs. NY</span>
+                  </th>
+                  <th scope="col" className="py-2 text-right font-medium">
+                    <Explicacion termino="rangoNormal">Rango normal</Explicacion>
+                    <span className="block font-normal">9 de cada 10 días</span>
+                  </th>
                 </tr>
               </thead>
               <tbody>
                 {conDatos.map(({ etiqueta, datos }) => {
                   const r = datos!.resumen;
+                  const hoy = datos!.observados[datos!.observados.length - 1];
+                  // Nueva York en pesos por kilo con la TRM de ese mismo día,
+                  // para que las dos columnas se comparen en la misma unidad.
+                  const nyCopKg = (hoy.futuroUsdTm * hoy.precioCopKg) / hoy.precioUsdTm;
                   return (
                     <tr key={etiqueta} className="border-b border-borde last:border-0">
                       <td className="py-2 pr-3">{etiqueta}</td>
-                      <td className="py-2 pr-3 text-right">{r.dias}</td>
+                      <td className="py-2 pr-3 text-right font-medium">
+                        {copExacto(hoy.precioCopKg)}
+                      </td>
+                      <td className="py-2 pr-3 text-right">{copExacto(nyCopKg)}</td>
                       <td className="py-2 pr-3 text-right font-medium">
                         {porcentaje(r.actual)}
                       </td>
@@ -89,21 +113,18 @@ export default async function PaginaPrecios() {
           </div>
 
           <p className="max-w-prose text-xs leading-relaxed text-texto-suave">
-            «Hoy» es el último día con precio publicado y bolsa del mismo día; es el valor
-            que el formulario de análisis propone. El rango p5–p95 es lo que de verdad
-            oscila ese descuento, y es riesgo de base puro: la parte que ninguna cobertura
-            con futuros toca.
+            El «descuento hoy» es el que el formulario de análisis le propone cuando le
+            falta comprar el cacao. El rango normal es lo que de verdad se mueve ese
+            descuento, y es riesgo de base puro: la parte que ninguna cobertura con
+            futuros toca. Toque el nombre de cada columna para ver qué significa.
           </p>
 
           {conDatos[0].datos ? (
             <p className="text-xs text-texto-suave">
-              Cruzado contra {conDatos[0].datos.simboloCacao}, último dato del{" "}
-              {fechaLegible(conDatos[0].datos.resumen.fechaActual)}. Precio más reciente:{" "}
-              {usdTm(
-                conDatos[0].datos.observados[conDatos[0].datos.observados.length - 1]
-                  ?.precioCopKg ?? 0,
-              )}{" "}
-              COP/kg.
+              Cruzado contra el contrato {conDatos[0].datos.simboloCacao} de Nueva York y
+              la TRM de cada día. Último dato: {fechaLegible(conDatos[0].datos.resumen.fechaActual)}.
+              Historia: {conDatos[0].datos.resumen.dias} días con precio publicado y bolsa
+              abierta el mismo día.
             </p>
           ) : null}
         </section>
