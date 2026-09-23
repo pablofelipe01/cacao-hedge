@@ -5,6 +5,7 @@ import {
   esquemaAnalisis,
   esquemaConfiguracion,
   esquemaLote,
+  esquemaVenta,
   interpretarNumero,
 } from "../esquemas";
 import { margenMantenimientoDesdeInicial } from "@/lib/engine/constantes";
@@ -265,5 +266,35 @@ describe("erroresPorCampo", () => {
     const errores = erroresPorCampo(r.error!);
     expect(Object.keys(errores)).toContain("toneladas");
     expect(Object.keys(errores)).toContain("nombre");
+  });
+});
+
+describe("esquemaVenta", () => {
+  const BASE = { comprador: "Barry Callebaut", toneladas: "50", fechaEmbarque: "2026-12-10" };
+
+  it("una venta pactada exige el precio y no el diferencial", () => {
+    expect(esquemaVenta.safeParse({ ...BASE, modalidad: "precio_pactado", precioUsdTm: "6.500" }).success).toBe(true);
+    const sinPrecio = esquemaVenta.safeParse({ ...BASE, modalidad: "precio_pactado" });
+    expect(sinPrecio.success).toBe(false);
+    expect(erroresPorCampo(sinPrecio.error!)).toHaveProperty("precioUsdTm");
+  });
+
+  it("una venta por fijar acepta el diferencial en % o en USD/TM", () => {
+    for (const [diferencial, unidadDiferencial] of [["−5", "porcentaje"], ["-300", "usd_tm"], ["0", "porcentaje"]]) {
+      expect(
+        esquemaVenta.safeParse({ ...BASE, modalidad: "por_fijar", diferencial, unidadDiferencial }).success,
+      ).toBe(true);
+    }
+  });
+
+  it("un porcentaje de tres cifras es un USD/TM con la unidad equivocada", () => {
+    const r = esquemaVenta.safeParse({ ...BASE, modalidad: "por_fijar", diferencial: "-300", unidadDiferencial: "porcentaje" });
+    expect(r.success).toBe(false);
+    expect(erroresPorCampo(r.error!).diferencial).toMatch(/cambie la unidad/);
+  });
+
+  it("una venta por fijar sin diferencial no se acepta", () => {
+    const r = esquemaVenta.safeParse({ ...BASE, modalidad: "por_fijar", diferencial: "" });
+    expect(r.success).toBe(false);
   });
 });

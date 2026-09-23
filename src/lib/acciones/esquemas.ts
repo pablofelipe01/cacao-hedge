@@ -241,3 +241,53 @@ export const esquemaConfiguracion = z
   });
 
 export type DatosConfiguracion = z.infer<typeof esquemaConfiguracion>;
+
+/**
+ * Una venta cerrada, pendiente de embarque.
+ *
+ * El cliente pacta de las dos formas —precio cerrado, o contra Nueva York
+ * ± un diferencial que a su vez puede ir en % o en USD/TM—, así que el
+ * formulario las admite todas y exige solo el dato que cada una necesita.
+ */
+export const esquemaVenta = z
+  .object({
+    comprador: z.string().trim().min(1, "Indique a quién le vendió.").max(120),
+    toneladas: numeroPositivo("Las toneladas"),
+    fechaEmbarque: fechaIso,
+    modalidad: z.enum(["precio_pactado", "por_fijar"]),
+    precioUsdTm: z.string().trim().optional(),
+    diferencial: z.string().trim().optional(),
+    unidadDiferencial: z.enum(["usd_tm", "porcentaje"]).default("porcentaje"),
+    notas: z.string().trim().max(2000).optional(),
+  })
+  .superRefine((datos, ctx) => {
+    if (datos.modalidad === "precio_pactado") {
+      const precio = interpretarNumero(String(datos.precioUsdTm ?? ""));
+      if (!Number.isFinite(precio) || precio <= 0) {
+        ctx.addIssue({
+          code: "custom",
+          path: ["precioUsdTm"],
+          message: "Indique el precio pactado, en USD/TM.",
+        });
+      }
+      return;
+    }
+
+    const diferencial = interpretarNumero(String(datos.diferencial ?? ""));
+    if (!Number.isFinite(diferencial)) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["diferencial"],
+        message: "Indique el diferencial pactado. Si vendió a Nueva York exacto, escriba 0.",
+      });
+    } else if (datos.unidadDiferencial === "porcentaje" && Math.abs(diferencial) >= 100) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["diferencial"],
+        message:
+          "Como porcentaje debe estar entre −100 y 100. Si quería escribir dólares por tonelada, cambie la unidad al lado del campo.",
+      });
+    }
+  });
+
+export type DatosVenta = z.infer<typeof esquemaVenta>;

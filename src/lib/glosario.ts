@@ -201,6 +201,30 @@ export const GLOSARIO = {
     que: "Entre qué valores se movió el descuento 9 de cada 10 días. Se dejan fuera el 5 % de días más extremos por cada lado.",
     ojo: "Ese vaivén es el riesgo de base: la parte que ninguna cobertura con futuros toca, porque es un riesgo del mercado colombiano y no de Nueva York.",
   },
+
+  // --- Posición de la empresa ------------------------------------------
+  asignacionBodega: {
+    titulo: "De bodega · Por comprar",
+    que: "El cacao que ya tiene en bodega se asigna a las ventas que embarcan primero. Lo que no alcanza hay que comprárselo al productor, al descuento medido en Precios.",
+    ojo: "Una venta a precio cerrado que sale de bodega ya no tiene riesgo de precio: compró y vendió. La que hay que abastecer sí, y al revés que el inventario: pierde si el cacao sube.",
+  },
+  exposicionNeta: {
+    titulo: "Exposición neta",
+    ejemplo: "+42 TM · gana si sube",
+    que: "Cuántas toneladas de Nueva York tiene abiertas ese mes, después de compensar lo que tiene con lo que debe. Positivo: gana si el cacao sube y se cubre vendiendo futuros. Negativo: pierde si sube y se cubre comprándolos.",
+    ojo: "Con diferencial en porcentaje, una tonelada física no es una tonelada de Nueva York: vender al 95 % de NY solo expone el 95 %. Por eso la cifra puede no coincidir con la suma de toneladas.",
+  },
+  vencimientoMes: {
+    titulo: "Vencimiento",
+    ejemplo: "diciembre 2026 (Z26)",
+    que: "El contrato de Nueva York con el que se cubre ese mes: el primero que sigue abierto después del embarque.",
+    ojo: "Pasado el primer día de aviso —unos diez días hábiles antes del mes del contrato— quien sigue corto puede terminar entregando cacao en Nueva York. Por eso un embarque de finales de noviembre ya no va contra diciembre sino contra marzo.",
+  },
+  malDiaTotal: {
+    titulo: "Mal día del total",
+    que: "La utilidad de toda la empresa en el peor 5 % de los caminos simulados, con todos los meses moviéndose sobre el mismo precio.",
+    ojo: "No es la suma de los malos días de cada mes. Un mes que gana si el cacao sube y otro que pierde se compensan, y el total arriesga menos que sus partes.",
+  },
 } as const satisfies Record<string, EntradaGlosario>;
 
 /** Las entradas agrupadas como aparecen en pantalla, para la guía. */
@@ -252,5 +276,11 @@ export const SECCIONES_GLOSARIO: { seccion: string; intro?: string; claves: Clav
     intro:
       "Lo que pagan Nacional de Chocolates y Casa Luker, comparado con Nueva York. De ahí sale el descuento al que usted compra.",
     claves: ["precioProductor", "nyEnPesos", "descuentoHoy", "descuentoHabitual", "rangoNormal"],
+  },
+  {
+    seccion: "La posición de la empresa",
+    intro:
+      "La bodega, las ventas a precio cerrado y las ventas por fijar, juntas y mes a mes. Lo que se compensa entre ellas no hace falta cubrirlo.",
+    claves: ["asignacionBodega", "exposicionNeta", "vencimientoMes", "malDiaTotal"],
   },
 ];

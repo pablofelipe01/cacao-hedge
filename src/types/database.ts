@@ -22,6 +22,8 @@ export type FuentePrecio =
   | "datos_gov_co"
   | "manual";
 export type EstadoAnalisis = "pendiente" | "calculado" | "con_informe" | "error";
+export type ModalidadVenta = "precio_pactado" | "por_fijar";
+export type UnidadDiferencial = "usd_tm" | "porcentaje";
 
 /**
  * Comprador y calidad en la hoja de precios al productor.
@@ -227,6 +229,40 @@ export type Database = {
         Update: Partial<Database["public"]["Tables"]["configuracion"]["Insert"]>;
         Relationships: [];
       };
+      ventas: {
+        Row: {
+          id: string;
+          user_id: string;
+          comprador: string;
+          toneladas: number;
+          fecha_embarque: string;
+          modalidad: ModalidadVenta;
+          precio_usd_tm: number | null;
+          diferencial: number | null;
+          unidad_diferencial: UnidadDiferencial | null;
+          notas: string | null;
+          activo: boolean;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          comprador: string;
+          toneladas: number;
+          fecha_embarque: string;
+          modalidad: ModalidadVenta;
+          precio_usd_tm?: number | null;
+          diferencial?: number | null;
+          unidad_diferencial?: UnidadDiferencial | null;
+          notas?: string | null;
+          activo?: boolean;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["ventas"]["Insert"]>;
+        Relationships: [];
+      };
     };
     Views: {
       /** Una fila por serie cacheada: evita paginar `precios` para contar. */
@@ -248,6 +284,8 @@ export type Database = {
       tipo_serie: TipoSerie;
       fuente_precio: FuentePrecio;
       estado_analisis: EstadoAnalisis;
+      modalidad_venta: ModalidadVenta;
+      unidad_diferencial: UnidadDiferencial;
     };
     CompositeTypes: Record<never, never>;
   };

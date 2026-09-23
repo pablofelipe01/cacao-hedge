@@ -363,6 +363,7 @@ function evaluarCambiario(
 
 // Reexportación de la superficie pública del motor.
 export * from "./constantes";
+export * from "./consolidado";
 export * from "./contratos";
 export * from "./escenarios";
 export * from "./estrategias";
