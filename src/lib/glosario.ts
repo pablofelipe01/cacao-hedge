@@ -225,6 +225,28 @@ export const GLOSARIO = {
     que: "La utilidad de toda la empresa en el peor 5 % de los caminos simulados, con todos los meses moviéndose sobre el mismo precio.",
     ojo: "No es la suma de los malos días de cada mes. Un mes que gana si el cacao sube y otro que pierde se compensan, y el total arriesga menos que sus partes.",
   },
+  nyEquilibrioVenta: {
+    titulo: "NY de equilibrio",
+    ejemplo: "8.247 USD/TM",
+    que: "El precio de Nueva York al que la venta deja de ganar: por encima, comprar el cacao y llevarlo a puerto cuesta más de lo que se cobra.",
+    ojo: "Es la línea que protege la cobertura. Cuanto más cerca esté del precio de hoy, menos subida aguanta la venta sin cubrir.",
+  },
+  cajaMinima: {
+    titulo: "Caja en el peor momento",
+    ejemplo: "61 M",
+    que: "Lo más bajo que llega su caja durante toda la operación, en el peor 5 % de los caminos simulados. Cuenta anticipos, pagos al productor, logística, cobros contra documentos, margen inicial, primas y llamadas de margen.",
+    ojo: "Si es negativa, en esos caminos la operación necesita más plata de la que tiene: tendría que conseguir crédito o cerrar la cobertura antes de tiempo, justo cuando más duele.",
+  },
+  cabeEnCapital: {
+    titulo: "¿Cabe?",
+    que: "Sí, si la caja no baja de cero en el peor 5 % de los caminos. La estrategia sugerida es la que más protege entre las que caben.",
+    ojo: "Una cobertura que no se puede sostener hasta el final no protege: la obliga a cerrarla en el peor momento.",
+  },
+  llamadasCompra: {
+    titulo: "Llamadas de margen",
+    que: "Lo que tendría que depositar en el bróker, sumado, en el peor 5 % de los caminos. Con futuros comprados llegan cuando el cacao BAJA.",
+    ojo: "Cuando el cacao baja, su venta fija gana —el cacao que falta comprar sale más barato—, pero esa ganancia llega al comprar, semanas después. La llamada es hoy. Los calls no tienen llamadas: se paga la prima y nada más.",
+  },
 } as const satisfies Record<string, EntradaGlosario>;
 
 /** Las entradas agrupadas como aparecen en pantalla, para la guía. */
@@ -282,5 +304,11 @@ export const SECCIONES_GLOSARIO: { seccion: string; intro?: string; claves: Clav
     intro:
       "La bodega, las ventas a precio cerrado y las ventas por fijar, juntas y mes a mes. Lo que se compensa entre ellas no hace falta cubrirlo.",
     claves: ["asignacionBodega", "exposicionNeta", "vencimientoMes", "malDiaTotal"],
+  },
+  {
+    seccion: "El simulador",
+    intro:
+      "Casos que todavía no ha cerrado: una venta a precio fijo con entregas parciales, sus anticipos y su capital. Cada cobertura se mide dos veces: cuánto protege y cuánta caja exige.",
+    claves: ["nyEquilibrioVenta", "cajaMinima", "cabeEnCapital", "llamadasCompra"],
   },
 ];

@@ -374,3 +374,4 @@ export * from "./opciones";
 export * from "./riesgo";
 export * from "./tipos";
 export * from "./volatilidad";
+export * from "./simulador";

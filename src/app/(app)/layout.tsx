@@ -13,7 +13,7 @@ export default async function LayoutApp({ children }: LayoutProps<"/">) {
           <Link href="/dashboard" className="font-semibold tracking-tight text-cacao">
             CacaoHedge
           </Link>
-          <nav className="flex items-center gap-4 text-sm">
+          <nav className="flex flex-wrap items-center justify-end gap-x-4 gap-y-1 text-sm">
             <Link href="/dashboard" className="text-texto-suave hover:text-texto">
               Inventario
             </Link>
@@ -22,6 +22,9 @@ export default async function LayoutApp({ children }: LayoutProps<"/">) {
             </Link>
             <Link href="/posicion" className="text-texto-suave hover:text-texto">
               Posición
+            </Link>
+            <Link href="/simulador" className="text-texto-suave hover:text-texto">
+              Simulador
             </Link>
             <Link href="/precios" className="text-texto-suave hover:text-texto">
               Precios
