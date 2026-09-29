@@ -18,6 +18,13 @@ const HOJA = readFileSync(
   "utf8",
 );
 
+// La misma hoja después de que el cliente añadiera la unidad a los
+// encabezados («CANTIDAD DISPONIBLE EN BODEGA (kilos)») y una fila de nota.
+const HOJA_KILOS = readFileSync(
+  fileURLToPath(new URL("./fixtures/hoja-inventario-kilos.csv", import.meta.url)),
+  "utf8",
+);
+
 const SIN_ESPERAS = { dormir: async () => {}, aleatorio: () => 0.5 };
 
 function respuestaTexto(cuerpo: string) {
@@ -92,6 +99,18 @@ describe("localizarColumnas", () => {
     expect(col.valorCompra).toBe(8);
     expect(col.ingresada).toBe(12);
     expect(col.salida).toBe(13);
+  });
+
+  it("reconoce los encabezados aunque traigan la unidad entre paréntesis", () => {
+    const col = localizarColumnas(parsearCsv(HOJA_KILOS));
+    expect(col).toEqual({
+      fecha: 0,
+      codigo: 4,
+      valorCompra: 8,
+      ingresada: 12,
+      salida: 13,
+      disponible: 14,
+    });
   });
 
   it("falla con un mensaje útil si la hoja cambió de estructura", () => {

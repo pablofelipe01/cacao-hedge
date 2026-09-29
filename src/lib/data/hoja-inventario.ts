@@ -11,7 +11,9 @@
  *     importa) y otra en CLASIFICACION desglosada por calidad. Localizar
  *     la columna por nombre a secas tomaría la equivocada, así que se
  *     busca la primera y se verifica su posición.
- *  2. Los números vienen en convención colombiana y entrecomillados
+ *  2. Los encabezados cambian de redacción: el cliente les ha ido
+ *     añadiendo la unidad («(KG)», «(kilos)»), así que se comparan sin ella.
+ *  3. Los números vienen en convención colombiana y entrecomillados
  *     («1580,6»), y algunas celdas traen errores de fórmula (#DIV/0!).
  */
 
@@ -147,8 +149,16 @@ export interface Columnas {
  * posición en la sección de entradas.
  */
 export function localizarColumnas(filas: string[][]): Columnas {
+  // La unidad entre paréntesis al final se ignora: la hoja ha escrito
+  // «CANTIDAD INGRESADA (KG)», luego «(kilos)», y otras columnas sin nada.
   const normalizar = (v: string) =>
-    v.trim().toUpperCase().replace(/\s+/g, " ").normalize("NFD").replace(/[̀-ͯ]/g, "");
+    v
+      .trim()
+      .toUpperCase()
+      .replace(/\s+/g, " ")
+      .normalize("NFD")
+      .replace(/[̀-ͯ]/g, "")
+      .replace(/\s*\([^)]*\)$/, "");
 
   // El encabezado ocupa varias filas; se busca en las primeras seis.
   let encabezado: string[] | null = null;
@@ -187,7 +197,7 @@ export function localizarColumnas(filas: string[][]): Columnas {
     fecha: 0,
     codigo: buscar("CODIGO DE PROCEDENCIA"),
     valorCompra: buscar("VALOR DE COMPRA"),
-    ingresada: buscar("CANTIDAD INGRESADA (KG)"),
+    ingresada: buscar("CANTIDAD INGRESADA"),
     salida,
     disponible: indiceDisponible,
   };

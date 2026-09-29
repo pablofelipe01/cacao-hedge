@@ -22,14 +22,23 @@ export function SincronizacionAutomatica({ sincronizadoEn }: { sincronizadoEn: s
     });
   }, []);
 
+  const leida = sincronizadoEn
+    ? new Date(sincronizadoEn).toLocaleString("es-CO", {
+        dateStyle: "medium",
+        timeStyle: "short",
+      })
+    : null;
+
   let texto: string;
   if (actualizando) texto = "Actualizando desde la hoja de inventario…";
-  else if (error) texto = `No se pudo leer la hoja: ${error}`;
-  else if (sincronizadoEn)
-    texto = `Según la hoja de inventario, leída el ${new Date(sincronizadoEn).toLocaleString(
-      "es-CO",
-      { dateStyle: "medium", timeStyle: "short" },
-    )}. Se vuelve a leer sola cada media hora.`;
+  // Las cifras de la pantalla siguen siendo las de la última lectura buena:
+  // hay que decir de cuándo son, o parecen las de hoy.
+  else if (error)
+    texto = `No se pudo leer la hoja: ${error}${
+      leida ? ` Las cifras que se ven son de la lectura del ${leida}.` : ""
+    }`;
+  else if (leida)
+    texto = `Según la hoja de inventario, leída el ${leida}. Se vuelve a leer sola cada media hora.`;
   else texto = "Todavía no se ha leído la hoja de inventario.";
 
   return (
